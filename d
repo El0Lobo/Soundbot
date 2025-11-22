@@ -122,3 +122,4 @@ Waiting for the debugger to disconnect...
 PS C:\Users\Lobo\Desktop\Soundbot> 
 
 C:\Windows\System32\cmd.exe /k "cd /d C:\Users\Lobo\Documents\GitHub\Soundbot && npm run start"
+https://prod.liveshare.vsengsaas.visualstudio.com/join?84ABFA6EE7EDB557A0B19AA44B557DC09293
