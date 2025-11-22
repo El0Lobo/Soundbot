@@ -120,3 +120,5 @@ up to date, audited 221 packages in 4s
 found 0 vulnerabilities
 Waiting for the debugger to disconnect...
 PS C:\Users\Lobo\Desktop\Soundbot> 
+
+C:\Windows\System32\cmd.exe /k "cd /d C:\Users\Lobo\Documents\GitHub\Soundbot && npm run start"
