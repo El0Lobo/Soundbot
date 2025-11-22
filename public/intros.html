@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Intro/Outro</title>
+  <link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+  <header class="topbar">
+    <h1>Intro/Outro</h1>
+    <nav class="nav">
+      <a href="/upload">Upload</a><a href="/import">YouTube Import</a><a href="/admin">Edit</a>
+    </nav>
+  </header>
+
+
+
+  <section class="panel">
+    <h2>Your intro/outro sounds</h2>
+    <label>Intro
+      <select id="introSelect"></select>
+      <button id="introPreview">Preview</button>
+    </label>
+    <label>Outro
+      <select id="outroSelect"></select>
+      <button id="outroPreview">Preview</button>
+    </label>
+    <button id="saveBtn">Save</button>
+    <div id="status" class="status"></div>
+    <audio id="preview" controls style="width:100%;margin-top:0.5rem;display:none;"></audio>
+  </section>
+
+  <script type="module" src="intros.js"></script>
+</body>
+</html>

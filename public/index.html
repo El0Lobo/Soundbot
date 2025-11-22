@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Soundboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body>
+  <div id="toast" class="toast" aria-live="polite"></div>
+  <div id="lockOverlay">
+    <div class="lock-card">
+      <h2>Log in first</h2>
+      <p>This soundboard unlocks after you pair this browser with Discord.</p>
+      <div id="overlayLoginMount"></div>
+    </div>
+  </div>
+
+  <div id="appShell">
+    <header class="topbar">
+      <div class="brand-row">
+        <div class="brand-left">
+          <div class="brand-title">
+            <img id="guildAvatar" class="avatar guild" alt="Guild icon" />
+            <h1><span id="guildNameLabel" class="server-title">Server</span> Soundboard</h1>
+            <nav class="nav">
+          <button class="modal-open upload-only" data-modal="uploadModal" data-src="/upload">Upload</button>
+          <button class="modal-open upload-only" data-modal="importModal" data-src="/import">Import</button>
+          <button class="modal-open upload-only" data-modal="introsModal" data-src="/intros">Intro/Outro</button>
+          <button class="modal-open upload-only" data-modal="adminModal" data-src="/admin">Edit</button>
+          <button id="openYtModal" class="yt-open-btn upload-only">Play YouTube</button>
+        </nav>
+          </div>
+                <div class="toolbar">
+        <div class="filters">
+          <input id="search" class="compact-input" placeholder="Search…" style="min-width: 50%;">
+          <select id="categoryFilter" class="compact-select">
+            <option value="all">All</option>
+          </select>
+          <select id="tagFilter" class="compact-select">
+            <option value="all">All tags</option>
+          </select>
+          <select id="sort" class="compact-select" style="width: fit-content;">
+            <option value="title">A–Z</option>
+            <option value="category">Category</option>
+            <option value="tags">Tags</option>
+            <option value="newest">Newest</option>
+          </select>
+          <button id="favoritesToggle" class="pill favorites-toggle" title="Show only favorites">☆ Favorites</button>
+        </div>
+      </div>
+          <div class="voice-bar hidden" id="voiceBar">
+            <select id="guildSelect" class="compact-select" style="display:none;"></select>
+
+            <label class="chip">
+              <span>Channel</span>
+              <select id="channelSelect" class="compact-select"></select>
+            </label>
+
+            <label class="chip">
+              <input type="checkbox" id="useMyChannel">
+              Use Channel I'm in
+            </label>
+
+            <button id="skipBtn" class="pill">Skip</button>
+            <button id="stopBtn" class="pill">Stop</button>
+
+            <label class="chip">
+              <span>Mode</span>
+              <select id="modeSelect" class="compact-select">
+                <option value="queue">queue</option>
+                <option value="interrupt">interrupt</option>
+              </select>
+            </label>
+
+            <label class="chip volume-chip">
+              <span>Vol</span>
+              <input id="volumeRange" type="range" min="0" max="1" step="0.05" value="0.5">
+              <span id="volumeLabel">0.5</span>
+            </label>
+
+            <button id="refreshGuilds" class="pill">↻</button>
+          </div>
+        </div>
+        <div class="queue-row">
+          <button id="toggleVoiceBarBtn" class="pill admin-only" style="display:none;">Voice Controls</button>
+          <button id="showQueueBtn" class="pill">Show Queue</button>
+          <div id="queueBox" class="queue"></div>
+        </div>
+        <div id="loginMount" class="login-area">
+          <details class="login-box" id="loginBox" open>
+            <summary id="loginTitle">Log in</summary>
+            <div class="login-muted" id="loginText">
+              Pair this browser with Discord.
+            </div>
+            <div id="loginMeta"></div>
+            <div class="login-avatars">
+              <img id="userAvatar" class="avatar user" alt="User avatar" />
+            </div>
+
+            <div id="pairingControls">
+              <div class="login-actions">
+                <button id="getCodeBtn" class="compact-select">Get code</button>
+                <span id="codeDisplay" class="code-pill" style="display:none;"></span>
+              </div>
+              <div class="login-actions">
+                <input id="codeInput" class="compact-input" placeholder="Enter code…" />
+                <button id="startSessionBtn" class="compact-select">Start</button>
+              </div>
+              <div class="login-muted" id="howToText">
+                Run in Discord: <code>/link code:XXXXXX</code>
+              </div>
+            </div>
+          </details>
+        </div>
+      </div>
+
+    </header>
+
+    <div class="content">
+      <div id="voiceBlocker" class="voice-blocker" aria-hidden="true">
+        Join a voice channel first to use the soundboard.
+      </div>
+
+
+      <main id="grid"></main>
+    </div>
+
+    <!-- MODALS -->
+    <div class="modal" id="uploadModal" aria-hidden="true">
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div class="modal-title">Upload</div>
+          <button class="modal-close" data-close>Close</button>
+        </div>
+        <iframe class="modal-frame" src="about:blank"></iframe>
+      </div>
+    </div>
+
+    <div class="modal" id="importModal" aria-hidden="true">
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div class="modal-title">YouTube Import</div>
+          <button class="modal-close" data-close>Close</button>
+        </div>
+        <iframe class="modal-frame" src="about:blank"></iframe>
+      </div>
+    </div>
+
+    <div class="modal" id="introsModal" aria-hidden="true">
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div class="modal-title">Intro / Outro</div>
+          <button class="modal-close" data-close>Close</button>
+        </div>
+        <iframe class="modal-frame" src="about:blank"></iframe>
+      </div>
+    </div>
+
+    <div class="modal" id="adminModal" aria-hidden="true">
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div class="modal-title">Admin</div>
+          <button class="modal-close" data-close>Close</button>
+        </div>
+        <iframe class="modal-frame" src="about:blank"></iframe>
+      </div>
+    </div>
+
+    <!-- YouTube Play Once Modal -->
+    <div class="modal" id="ytModal" aria-hidden="true">
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div class="modal-title">Play YouTube once</div>
+          <button class="modal-close" data-close>Close</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="yt-modal-row">
+            <input id="ytUrl" class="compact-input" type="text" placeholder="YouTube link…">
+            <button id="ytPlayBtn" class="compact-select">Play now</button>
+          </div>
+          <div id="ytStatus" class="muted" style="margin-top:0.5rem;"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script type="module" src="lowpoly-bg.js"></script>
+    <script src="app.js"></script>
+  </div>
+</body>
+
+</html>
