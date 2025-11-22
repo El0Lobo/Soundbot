@@ -1,7 +1,55 @@
 {
   "332263606831939594": {
-    "intro": null,
-    "outro": null,
-    "favorites": []
+    "intro": "demons",
+    "outro": "planeleave",
+    "favorites": [
+      "wurm",
+      "aale",
+      "zwiebel",
+      "twauma",
+      "timmy",
+      "veralbern",
+      "pinky",
+      "bertruhe",
+      "affenwaerter",
+      "zink",
+      "wrong",
+      "epigram",
+      "lower",
+      "grip",
+      "looting",
+      "mathiiiis",
+      "pflaster",
+      "physik",
+      "oz",
+      "pack",
+      "elch",
+      "bennett",
+      "prettygood",
+      "fachpresse",
+      "wilhelm",
+      "bier",
+      "wissen"
+    ]
+  },
+  "241645708241797122": {
+    "intro": "frozennorth",
+    "outro": "ihrensohn",
+    "favorites": [
+      "sonne",
+      "excludi1",
+      "excludi2",
+      "excludi3",
+      "wurm",
+      "ichzug"
+    ]
+  },
+  "307943491789651970": {
+    "intro": "ownitsc",
+    "outro": null
+  },
+  "268389939161464832": {
+    "intro": "gutenabend",
+    "outro": null
   }
 }
