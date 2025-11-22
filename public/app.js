@@ -150,12 +150,21 @@ function updateVoiceBlockerUI() {
     voiceBlocker.classList.toggle("show", block);
   }
 
+  // Prevent scrolling of .content instead of body
+  const content = document.querySelector('.content');
+  if (content) {
+    content.style.overflow = block ? "hidden" : "auto";
+  }
+
   const actionButtons = [queueBtn, skipBtn, stopBtn, openYtModalBtn];
-  actionButtons.filter(Boolean).forEach(btn => {
-    btn.disabled = block || controlsLocked;
-    btn.classList.toggle("disabled", block || controlsLocked);
-  });
+  actionButtons
+    .filter(Boolean)
+    .forEach(btn => {
+      btn.disabled = block || controlsLocked;
+      btn.classList.toggle("disabled", block || controlsLocked);
+    });
 }
+
 
 function voiceGateActive() {
   const block = useMyChannel.checked && !!sessionId && !inVoiceChannel;
