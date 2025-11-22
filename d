@@ -122,15 +122,3 @@ Waiting for the debugger to disconnect...
 PS C:\Users\Lobo\Desktop\Soundbot> 
 
 C:\Windows\System32\cmd.exe /k "cd /d C:\Users\Lobo\Documents\GitHub\Soundbot && npm run start"
-
-
-
-
-Install a current Node 22 (e.g., nvm install 22.13.0 && nvm use 22.13.0).
-From the project folder, clean and reinstall:
-rmdir /s /q node_modules
-npm install
-npm run start
-If it still complains about Opus, explicitly add it then reinstall:
-npm install @discordjs/opus
-(With Node 22+, the prebuilt @discordjs/opus binary should download cleanly on Windows and the error will go away.)
