@@ -729,7 +729,9 @@ main#grid {
 }
 
 .voice-blocker.show {
+  position: fixed;
   display: flex;
+  top: 7em;
 }
 
 .toast {
