@@ -87,6 +87,7 @@
         <div class="queue-row">
           <button id="toggleVoiceBarBtn" class="pill admin-only" style="display:none;">Voice Controls</button>
           <button id="showQueueBtn" class="pill">Show Queue</button>
+          <button id="moveVoteBtn" class="pill" style="display:none;">Move by vote</button>
           <div id="queueBox" class="queue"></div>
         </div>
         <div id="loginMount" class="login-area">
@@ -188,6 +189,31 @@
             <button id="ytPlayBtn" class="compact-select">Play now</button>
           </div>
           <div id="ytStatus" class="muted" style="margin-top:0.5rem;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Move by vote modal -->
+    <div class="modal" id="moveVoteModal" aria-hidden="true">
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div class="modal-title">Move by vote</div>
+          <button class="modal-close" data-close>Close</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row">
+            <label class="chip" style="width:100%;">
+              <span>Target member</span>
+              <select id="moveTargetSelect" class="compact-select" style="width:100%;"></select>
+            </label>
+          </div>
+          <div class="modal-actions">
+            <button id="startMoveVoteBtn" class="pill primary">Start vote</button>
+          </div>
+          <div class="muted" style="margin-top:0.5rem;">
+            Moves the chosen person to the loop channel after a 60s vote (ties pass).
+          </div>
         </div>
       </div>
     </div>

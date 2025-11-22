@@ -13,6 +13,7 @@ const { setIntro, setOutro, getUserConfig, setFavorites, getFavorites } = requir
 const { downloadYoutubeAudio, fetchPipedMetadata } = require("./youtube");
 const { convertToMp3, trimAudio } = require("./ffmpeg");
 const { playYoutubeOnce } = require("./ytPlay");
+const { startMovePoll } = require("./movePoll");
 const { ADMIN_USER_IDS, UPLOAD_ALLOWED_ROLE, SOUNDS_DIR, TMP_DIR } = require("./config");
 
 function createWebServer(client, port = 3000, onSoundsChange) {
@@ -209,6 +210,31 @@ function createWebServer(client, port = 3000, onSoundsChange) {
     }
   });
 
+  // members in current VC
+  app.get("/api/me/voice-members", requireSession, async (req, res) => {
+    try {
+      const { userId, guildId } = req.session;
+      const guild = client.guilds.cache.get(guildId);
+      if (!guild) throw new Error("Guild not found in session.");
+
+      const member = await guild.members.fetch(userId);
+      const vc = member.voice.channel;
+      if (!vc) return res.status(400).json({ error: "You are not in a voice channel." });
+
+      const members = vc.members
+        .filter(m => !m.user.bot && m.id !== userId)
+        .map(m => ({ id: m.id, name: m.displayName }));
+
+      res.json({
+        channelId: vc.id,
+        channelName: vc.name,
+        members
+      });
+    } catch (e) {
+      res.status(400).send(e.message);
+    }
+  });
+
   // ✅ NEW: session + role status for UI
   app.get("/api/me/status", requireSession, async (req, res) => {
     try {
@@ -294,6 +320,31 @@ function createWebServer(client, port = 3000, onSoundsChange) {
       res.json({ ok: true });
     } catch (e) {
       res.status(400).json({ ok: false, error: e.message });
+    }
+  });
+
+  // Move-by-vote into loop channel
+  const MovePollSchema = z.object({
+    targetId: z.string()
+  });
+
+  app.post("/api/vc/move-poll", requireSession, async (req, res) => {
+    const parsed = MovePollSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: parsed.error.message });
+    }
+
+    try {
+      const { userId, guildId } = req.session;
+      const guild = await client.guilds.fetch(guildId);
+      const result = await startMovePoll({
+        guild,
+        requesterId: userId,
+        targetId: parsed.data.targetId
+      });
+      res.json({ ok: true, ...result });
+    } catch (e) {
+      res.status(400).send(e.message);
     }
   });
 

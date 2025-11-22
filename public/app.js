@@ -24,6 +24,10 @@ const voiceBar = document.getElementById("voiceBar");
 const toggleVoiceBarBtn = document.getElementById("toggleVoiceBarBtn");
 const voiceBlocker = document.getElementById("voiceBlocker");
 const toastEl = document.getElementById("toast");
+const moveVoteBtn = document.getElementById("moveVoteBtn");
+const moveVoteModal = document.getElementById("moveVoteModal");
+const moveTargetSelect = document.getElementById("moveTargetSelect");
+const startMoveVoteBtn = document.getElementById("startMoveVoteBtn");
 
 const useMyChannel = document.getElementById("useMyChannel");
 useMyChannel.checked = true;
@@ -90,6 +94,12 @@ function updateUploadUI() {
   });
 }
 
+function updateMoveVoteVisibility() {
+  if (!moveVoteBtn) return;
+  moveVoteBtn.style.display = sessionId ? "" : "none";
+  moveVoteBtn.disabled = controlsLocked;
+}
+
 function setControlsEnabled(on) {
   controlsLocked = !on;
   const shell = document.getElementById("appShell");
@@ -113,7 +123,8 @@ function setControlsEnabled(on) {
     channelSelect, modeSelect, volumeRange,
     skipBtn, stopBtn, refreshGuildsBtn,
     queueBtn, toggleVoiceBarBtn, openYtModalBtn,
-    sortSelect, categoryFilter, tagFilter, favoritesToggle, searchInput
+    sortSelect, categoryFilter, tagFilter, favoritesToggle, searchInput,
+    moveVoteBtn
   ].filter(Boolean);
 
   for (const el of toToggle) {
@@ -122,6 +133,7 @@ function setControlsEnabled(on) {
   }
   updateVoiceBlockerUI();
   updateUploadUI();
+  updateMoveVoteVisibility();
 }
 
 function updateVoiceBarUI() {
@@ -791,6 +803,84 @@ ytPlayBtn?.addEventListener("click", async (e) => {
     ytStatus.textContent = err.message;
   } finally {
     setTimeout(() => { ytStatus.textContent = ""; }, 6000);
+  }
+});
+
+/* =========================
+   MOVE BY VOTE (loop channel)
+   ========================= */
+
+moveVoteBtn?.addEventListener("click", async () => {
+  if (!sessionId) {
+    showToast("Log in first.");
+    return;
+  }
+  if (voiceGateActive()) return;
+
+  moveVoteBtn.disabled = true;
+  const original = moveVoteBtn.textContent;
+  moveVoteBtn.textContent = "Loading…";
+
+  try {
+    const data = await fetchJSON("/api/me/voice-members", {
+      headers: { "X-Session-Id": sessionId }
+    });
+
+    const members = data.members || [];
+    if (!members.length) {
+      moveTargetSelect.innerHTML = "";
+      showToast("No other members in your voice channel.");
+      return;
+    }
+
+    moveTargetSelect.innerHTML = members
+      .map((m) => `<option value="${m.id}">${m.name}</option>`)
+      .join("");
+
+    openModal(moveVoteModal);
+  } catch (e) {
+    showToast(e.message || "Failed to load voice members.");
+  } finally {
+    moveVoteBtn.textContent = original;
+    moveVoteBtn.disabled = controlsLocked;
+  }
+});
+
+startMoveVoteBtn?.addEventListener("click", async () => {
+  if (!sessionId) {
+    showToast("Log in first.");
+    return;
+  }
+  const targetId = moveTargetSelect?.value;
+  if (!targetId) {
+    showToast("Pick someone to move.");
+    return;
+  }
+
+  startMoveVoteBtn.disabled = true;
+  const original = startMoveVoteBtn.textContent;
+  startMoveVoteBtn.textContent = "Starting…";
+
+  try {
+    const r = await fetch("/api/vc/move-poll", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-Id": sessionId
+      },
+      body: JSON.stringify({ targetId })
+    });
+    if (!r.ok) {
+      const txt = await r.text();
+      throw new Error(txt || "Failed to start vote.");
+    }
+    closeModal(moveVoteModal);
+    showToast("Vote started in Discord.");
+  } catch (e) {
+    showToast(e.message || "Failed to start vote.");
+  } finally {
+    startMoveVoteBtn.disabled = false;
+    startMoveVoteBtn.textContent = original;
   }
 });
 
