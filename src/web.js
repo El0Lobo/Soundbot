@@ -14,7 +14,7 @@ const { downloadYoutubeAudio, fetchPipedMetadata } = require("./youtube");
 const { convertToMp3, trimAudio } = require("./ffmpeg");
 const { playYoutubeOnce } = require("./ytPlay");
 const { startMovePoll } = require("./movePoll");
-const { ADMIN_USER_IDS, UPLOAD_ALLOWED_ROLE, SOUNDS_DIR, TMP_DIR } = require("./config");
+const { ADMIN_USER_IDS, UPLOAD_ALLOWED_ROLE, SOUNDS_DIR, TMP_DIR, DEFAULT_BOT_CHANNEL_ID } = require("./config");
 
 function createWebServer(client, port = 3000, onSoundsChange) {
   const app = express();
@@ -316,6 +316,19 @@ function createWebServer(client, port = 3000, onSoundsChange) {
         url,
         volume: volume ?? getGuildConfig(guildId).volume ?? 0.5
       });
+
+      // Notify the configured bot text channel, if provided
+      if (DEFAULT_BOT_CHANNEL_ID) {
+        try {
+          const textChannel = client.channels.cache.get(DEFAULT_BOT_CHANNEL_ID) ||
+            await client.channels.fetch(DEFAULT_BOT_CHANNEL_ID).catch(() => null);
+          if (textChannel && textChannel.isTextBased()) {
+            await textChannel.send(`Now playing: ${url}`);
+          }
+        } catch (err) {
+          console.warn("[PLAY-YT] failed to send now playing message:", err?.message);
+        }
+      }
 
       res.json({ ok: true });
     } catch (e) {

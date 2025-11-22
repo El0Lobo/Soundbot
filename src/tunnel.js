@@ -12,6 +12,9 @@ function loadSavedTunnel() {
     const raw = fs.readFileSync(TUNNEL_FILE, "utf8");
     const data = JSON.parse(raw);
     if (data && data.url) {
+      try {
+        data.url = new URL(data.url).origin;
+      } catch {}
       current = data;
       return data;
     }
@@ -34,7 +37,16 @@ function persist(url) {
 function parseUrl(line) {
   // capture the trycloudflare URL anywhere in the line
   const match = line.match(/https?:\/\/[\w.-]+\.trycloudflare\.com\S*/i);
-  return match ? match[0].trim() : null;
+  if (!match) return null;
+  const raw = match[0].trim();
+  try {
+    // Normalize to origin only so bot messages stay clean
+    return new URL(raw).origin;
+  } catch {
+    // fallback: strip path manually
+    const withoutPath = raw.split("/").slice(0, 3).join("/");
+    return withoutPath || raw;
+  }
 }
 
 function handleLine(line) {

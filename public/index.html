@@ -35,7 +35,10 @@
           </div>
                 <div class="toolbar">
         <div class="filters">
-          <input id="search" class="compact-input" placeholder="Search…" style="min-width: 50%;">
+          <div class="search-wrap">
+            <input id="search" class="compact-input" placeholder="Search…">
+            <button id="clearSearch" class="pill ghost-btn" type="button" title="Clear search">✕</button>
+          </div>
           <select id="categoryFilter" class="compact-select">
             <option value="all">All</option>
           </select>
@@ -86,8 +89,8 @@
         </div>
         <div class="queue-row">
           <button id="toggleVoiceBarBtn" class="pill admin-only" style="display:none;">Voice Controls</button>
+                    <button id="moveVoteBtn" class="pill" style="display:none;">Move by vote</button>
           <button id="showQueueBtn" class="pill">Show Queue</button>
-          <button id="moveVoteBtn" class="pill" style="display:none;">Move by vote</button>
           <div id="queueBox" class="queue"></div>
         </div>
         <div id="loginMount" class="login-area">

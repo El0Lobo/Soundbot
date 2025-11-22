@@ -1,5 +1,6 @@
 const grid = document.getElementById("grid");
 const searchInput = document.getElementById("search");
+const clearSearchBtn = document.getElementById("clearSearch");
 const sortSelect = document.getElementById("sort");
 const categoryFilter = document.getElementById("categoryFilter");
 const tagFilter = document.getElementById("tagFilter");
@@ -797,7 +798,7 @@ ytPlayBtn?.addEventListener("click", async (e) => {
     const j = await r.json();
     if (!r.ok) throw new Error(j.error || "YouTube play failed.");
 
-    ytStatus.innerHTML = `Now playing: <a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
+    ytStatus.innerHTML = `Sent to Discord: <a href="${url}" target="_blank" rel="noopener noreferrer">${url}</a>`;
     ytUrl.value = "";
   } catch (err) {
     ytStatus.textContent = err.message;
@@ -934,6 +935,11 @@ stopBtn.addEventListener("click", async () => {
 });
 
 searchInput.addEventListener("input", applyFilters);
+clearSearchBtn?.addEventListener("click", () => {
+  searchInput.value = "";
+  applyFilters();
+  searchInput.focus();
+});
 sortSelect.addEventListener("change", applyFilters);
 categoryFilter.addEventListener("change", applyFilters);
 tagFilter.addEventListener("change", applyFilters);

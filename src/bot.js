@@ -1,11 +1,31 @@
 // src/bot.js
-const { Client, GatewayIntentBits } = require("discord.js");
+const { Client, GatewayIntentBits, Events } = require("discord.js");
 const { getSounds } = require("./sounds");
-const { playSound, stopPlayback, skipCurrent, getQueue } = require("./audioManager");
-const { setDefaultChannel, setVolume } = require("./guildStore");
+const {
+  playSound,
+  stopPlayback,
+  skipCurrent,
+  getQueue,
+  startLoop,
+  stopLoop,
+  isLooping
+} = require("./audioManager");
+const { setDefaultChannel, setVolume, getGuildConfig } = require("./guildStore");
 const { getUserConfig } = require("./userStore");
 const { playYoutubeOnce } = require("./ytPlay");
 const { getCurrentTunnel } = require("./tunnel");
+const {
+  LOOP_CHANNEL_NAME,
+  LOOP_SOUND_ID,
+  LOOP_VOLUME
+} = require("./config");
+
+const loopChannelName = (LOOP_CHANNEL_NAME || "").trim().toLowerCase();
+function isLoopChannel(channel) {
+  if (!loopChannelName) return false;
+  const name = (channel?.name || "").trim().toLowerCase();
+  return name === loopChannelName;
+}
 
 function createBot() {
   const client = new Client({
@@ -176,11 +196,13 @@ function createBot() {
       const userId = newState.id;
       const guild = newState.guild || oldState.guild;
       if (!guild) return;
+      const joinedLoop = newState.channel && isLoopChannel(newState.channel);
+      const leftLoop = oldState.channel && isLoopChannel(oldState.channel);
 
       // Joined a channel
       if (!oldState.channelId && newState.channelId) {
         const cfg = getUserConfig(userId);
-        if (!cfg.intro) return;
+        if (!cfg.intro || joinedLoop) return;
         const voiceChannel = newState.channel;
         if (!voiceChannel) return;
 
@@ -196,7 +218,7 @@ function createBot() {
       // Left a channel
       if (oldState.channelId && !newState.channelId) {
         const cfg = getUserConfig(userId);
-        if (!cfg.outro) return;
+        if (!cfg.outro || leftLoop) return;
         const voiceChannel = oldState.channel;
         if (!voiceChannel) return;
 
@@ -213,7 +235,7 @@ function createBot() {
       if (oldState.channelId && newState.channelId && oldState.channelId !== newState.channelId) {
         const cfg = getUserConfig(userId);
 
-        if (cfg.outro && oldState.channel) {
+        if (cfg.outro && oldState.channel && !isLoopChannel(oldState.channel)) {
           await playSound({
             guild,
             voiceChannel: oldState.channel,
@@ -223,7 +245,7 @@ function createBot() {
           });
         }
 
-        if (cfg.intro && newState.channel) {
+        if (cfg.intro && newState.channel && !isLoopChannel(newState.channel)) {
           await playSound({
             guild,
             voiceChannel: newState.channel,
@@ -243,15 +265,6 @@ function createBot() {
 
   return { client, pendingCodesRef: pendingCodes };
 }
-// src/bot.js
-const { Events } = require("discord.js");
-const { startLoop, stopLoop, isLooping } = require("./audioManager");
-const { getGuildConfig } = require("./guildStore");
-const {
-  LOOP_CHANNEL_NAME,
-  LOOP_SOUND_ID,
-  LOOP_VOLUME
-} = require("./config");
 
 function setupBot(client) {
   // your other event handlers / slash command routing stays as-is
