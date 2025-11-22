@@ -42,22 +42,30 @@ async function main() {
   setInterval(() => cleanTmpDir(TMP_DIR, TMP_MAX_FILE_AGE_MS), TMP_CLEAN_INTERVAL_MS);
 
   let tunnelInfo = getCurrentTunnel();
-  const postTunnel = (url) => {
+  let lastTunnelMessageId = null;
+  const postTunnel = async (url) => {
     if (!DEFAULT_BOT_CHANNEL_ID || !url) return;
     const channel = client.channels.cache.get(DEFAULT_BOT_CHANNEL_ID);
     if (!channel) {
       console.warn("[TUNNEL] default bot channel not found:", DEFAULT_BOT_CHANNEL_ID);
       return;
     }
-    channel.send(`🌐 Web UI is online:\n${url}`).catch(err => {
+    try {
+      if (lastTunnelMessageId) {
+        const prev = await channel.messages.fetch(lastTunnelMessageId).catch(() => null);
+        if (prev?.deletable) await prev.delete().catch(() => {});
+      }
+      const msg = await channel.send(`🌐 Web UI is online:\n${url}`);
+      lastTunnelMessageId = msg?.id || null;
+    } catch (err) {
       console.warn("[TUNNEL] failed to send tunnel URL:", err.message);
-    });
+    }
   };
 
   onTunnelUrl(info => {
     tunnelInfo = info;
     if (client.isReady()) {
-      postTunnel(info.url);
+      postTunnel(info.url).catch(err => console.warn("[TUNNEL] postTunnel failed:", err?.message));
     }
   });
 
@@ -66,7 +74,7 @@ async function main() {
   client.once("ready", () => {
     // Only post a tunnel URL if it was generated after this process started
     if (tunnelInfo?.url && tunnelInfo?.timestamp >= botStartTs) {
-      postTunnel(tunnelInfo.url);
+      postTunnel(tunnelInfo.url).catch(err => console.warn("[TUNNEL] postTunnel failed:", err?.message));
     }
   });
 

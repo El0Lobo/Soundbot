@@ -36,6 +36,10 @@ function createBot() {
   });
 
   const pendingCodes = { map: null };
+  async function replySingle(interaction, payload) {
+    const opts = typeof payload === "string" ? { content: payload } : (payload || {});
+    return interaction.reply(opts);
+  }
 
   client.once("ready", async () => {
     console.log(`Logged in as ${client.user.tag}`);
@@ -89,7 +93,7 @@ function createBot() {
       const mode = interaction.options.getString("mode", false) || "queue";
 
       if (!voiceChannel) {
-        return interaction.reply({ content: "You must be in a voice channel.", ephemeral: true });
+        return replySingle(interaction, { content: "You must be in a voice channel.", ephemeral: true });
       }
       try {
         await playSound({
@@ -100,9 +104,9 @@ function createBot() {
           volumeOverride: volume ?? null,
           requestedBy: interaction.user.id
         });
-        await interaction.reply(`Playing **${soundId}** (${mode}).`);
+        await replySingle(interaction, `Playing **${soundId}** (${mode}).`);
       } catch (e) {
-        await interaction.reply({ content: e.message, ephemeral: true });
+        await replySingle(interaction, { content: e.message, ephemeral: true });
       }
     }
 
@@ -110,9 +114,9 @@ function createBot() {
       const url = interaction.options.getString("url", true);
 
       if (!voiceChannel) {
-        return interaction.reply({ content: "You must be in a voice channel.", ephemeral: true });
+        return replySingle(interaction, { content: "You must be in a voice channel.", ephemeral: true });
       }
-      await interaction.reply({ content: "Downloading + playing YouTube audio…", ephemeral: true });
+      await replySingle(interaction, { content: "Downloading + playing YouTube audio…", ephemeral: true });
 
       try {
         await playYoutubeOnce({
@@ -127,71 +131,71 @@ function createBot() {
 
     if (interaction.commandName === "stop") {
       if (!voiceChannel) {
-        return interaction.reply({ content: "Join a voice channel first.", ephemeral: true });
+        return replySingle(interaction, { content: "Join a voice channel first.", ephemeral: true });
       }
       const stopped = stopPlayback(guild.id, voiceChannel.id);
       if (!stopped) {
-        return interaction.reply({ content: "Nothing is playing here.", ephemeral: true });
+        return replySingle(interaction, { content: "Nothing is playing here.", ephemeral: true });
       }
-      await interaction.reply("Stopped and left this channel.");
+      await replySingle(interaction, "Stopped and left this channel.");
     }
 
     if (interaction.commandName === "skip") {
       if (!voiceChannel) {
-        return interaction.reply({ content: "Join a voice channel first.", ephemeral: true });
+        return replySingle(interaction, { content: "Join a voice channel first.", ephemeral: true });
       }
       const skipped = skipCurrent(guild.id, voiceChannel.id);
       if (!skipped) {
-        return interaction.reply({ content: "Nothing to skip.", ephemeral: true });
+        return replySingle(interaction, { content: "Nothing to skip.", ephemeral: true });
       }
-      await interaction.reply("Skipped.");
+      await replySingle(interaction, "Skipped.");
     }
 
     if (interaction.commandName === "queue") {
       if (!voiceChannel) {
-        return interaction.reply({ content: "Join a voice channel first.", ephemeral: true });
+        return replySingle(interaction, { content: "Join a voice channel first.", ephemeral: true });
       }
       const q = getQueue(guild.id, voiceChannel.id);
-      if (!q.length) return interaction.reply("Queue is empty.");
-      await interaction.reply("Queue:\n" + q.map((x,i)=>`${i+1}. ${x.soundId}`).join("\n"));
+      if (!q.length) return replySingle(interaction, "Queue is empty.");
+      await replySingle(interaction, "Queue:\n" + q.map((x,i)=>`${i+1}. ${x.soundId}`).join("\n"));
     }
 
     if (interaction.commandName === "tunnel") {
       const info = getCurrentTunnel();
       if (info?.url) {
-        return interaction.reply(`Current tunnel URL:\n${info.url}`);
+        return replySingle(interaction, `Current tunnel URL:\n${info.url}`);
       }
-      return interaction.reply({ content: "No active tunnel detected.", ephemeral: true });
+      return replySingle(interaction, { content: "No active tunnel detected.", ephemeral: true });
     }
 
     if (interaction.commandName === "volume") {
       const v = interaction.options.getNumber("value", true);
       setVolume(guild.id, v);
-      await interaction.reply(`Default volume set to ${v}.`);
+      await replySingle(interaction, `Default volume set to ${v}.`);
     }
 
     if (interaction.commandName === "set-default-channel") {
       const ch = interaction.options.getChannel("channel", true);
       if (!ch.isVoiceBased()) {
-        return interaction.reply({ content: "Pick a voice channel.", ephemeral: true });
+        return replySingle(interaction, { content: "Pick a voice channel.", ephemeral: true });
       }
       setDefaultChannel(guild.id, ch.id);
-      await interaction.reply(`Default voice channel set to **${ch.name}**.`);
+      await replySingle(interaction, `Default voice channel set to **${ch.name}**.`);
     }
 
     if (interaction.commandName === "link") {
       const code = interaction.options.getString("code", true);
       if (!pendingCodes.map) {
-        return interaction.reply({ content: "Pairing not enabled.", ephemeral: true });
+        return replySingle(interaction, { content: "Pairing not enabled.", ephemeral: true });
       }
       const entry = pendingCodes.map.get(code);
       if (!entry || entry.expiresAt < Date.now()) {
-        return interaction.reply({ content: "Code invalid or expired.", ephemeral: true });
+        return replySingle(interaction, { content: "Code invalid or expired.", ephemeral: true });
       }
       entry.userId = interaction.user.id;
       entry.guildId = interaction.guildId;
       pendingCodes.map.set(code, entry);
-      await interaction.reply({ content: "Linked! Return to the website.", ephemeral: true });
+      await replySingle(interaction, { content: "Linked! Return to the website.", ephemeral: true });
     }
   });
 
