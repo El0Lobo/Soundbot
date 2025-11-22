@@ -75,6 +75,18 @@ let voiceStatusKnown = false;
 let currentUserId = localStorage.getItem("userId") || null;
 let hasUploadRole = false;
 
+function categoriesOf(sound) {
+  if (!sound) return [];
+  if (Array.isArray(sound.categories) && sound.categories.length) {
+    return sound.categories.filter(Boolean);
+  }
+  return sound.category ? [sound.category] : [];
+}
+
+function primaryCategory(sound) {
+  return categoriesOf(sound)[0] || "uncategorized";
+}
+
 loadFavorites().then(() => applyFilters());
 updateVoiceBarUI();
 updateUploadUI();
@@ -563,7 +575,7 @@ async function refreshLoginStatus() {
    ========================= */
 
 function refreshFilters() {
-  const cats = Array.from(new Set(sounds.map(s => s.category))).sort();
+  const cats = Array.from(new Set(sounds.flatMap(s => categoriesOf(s)))).sort();
   categoryFilter.innerHTML =
     `<option value="all">All categories</option>` +
     cats.map(c => `<option value="${c}">${c}</option>`).join("");
@@ -639,8 +651,9 @@ function applyFilters() {
     const matchesQ =
       s.title.toLowerCase().includes(q) ||
       s.id.includes(q) ||
+      categoriesOf(s).some(c => c.toLowerCase().includes(q)) ||
       (s.tags || []).some(t => t.toLowerCase().includes(q));
-    const matchesCat = cat === "all" || s.category === cat;
+    const matchesCat = cat === "all" || categoriesOf(s).includes(cat);
     const matchesTag = tagSel === "all" || (s.tags || []).includes(tagSel);
     const matchesFav = !favoritesOnly || favorites.has(s.id);
     return matchesQ && matchesCat && matchesTag && matchesFav;
@@ -649,7 +662,7 @@ function applyFilters() {
   const sortBy = sortSelect.value;
   filtered.sort((a, b) => {
     if (sortBy === "category") {
-      return a.category.localeCompare(b.category) || a.title.localeCompare(b.title);
+      return primaryCategory(a).localeCompare(primaryCategory(b)) || a.title.localeCompare(b.title);
     }
     if (sortBy === "tags") {
       const ta = (a.tags && a.tags[0]) ? a.tags[0].toLowerCase() : "";
@@ -680,7 +693,13 @@ function render() {
         <div class="sound-main">
           <div class="title truncated" title="${s.title}">${s.title}</div>
           <div class="meta">
-            ${s.category}${s.tags?.length ? " • " + s.tags.join(", ") : ""}
+            ${(() => {
+              const cats = categoriesOf(s);
+              const parts = [];
+              if (cats.length) parts.push(cats.join(", "));
+              if (s.tags?.length) parts.push(s.tags.join(", "));
+              return parts.join(" • ");
+            })()}
           </div>
 
           <div class="sound-actions">

@@ -644,6 +644,82 @@ main#grid {
   border-color: #7a7aff;
   box-shadow: 0 0 0 1px rgba(122, 122, 255, 0.25);
 }
+.admin-fold {
+  border: 1px solid #222;
+  border-radius: 10px;
+  padding: 0.4rem 0.6rem;
+  margin: 0.4rem 0;
+  background: #0c0c14;
+}
+.admin-fold summary {
+  cursor: pointer;
+  font-weight: 700;
+  list-style: none;
+}
+.admin-fold[open] summary {
+  color: #dfe4ff;
+}
+.taxonomy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.35rem 0;
+  border-bottom: 1px solid #1b1b27;
+}
+.taxonomy-row:last-child {
+  border-bottom: none;
+}
+.taxonomy-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.taxonomy-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.taxonomy-row button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.multi-input {
+  position: relative;
+  width: 100%;
+}
+.multi-input input {
+  width: 100%;
+}
+.multi-suggest-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 2px);
+  display: none;
+  background: #0f0f15;
+  border: 1px solid #222;
+  border-radius: 8px;
+  padding: 0.25rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  z-index: 5;
+}
+.multi-suggest-list.show {
+  display: flex;
+  gap: 0.25rem;
+  flex-wrap: wrap;
+}
+.multi-suggest-list button {
+  background: #161622;
+  border: 1px solid #29293a;
+  border-radius: 999px;
+  padding: 0.25rem 0.6rem;
+  color: #e2e8f5;
+  cursor: pointer;
+}
+.multi-suggest-list button:hover {
+  border-color: #5c5ce3;
+}
 .file-link {
   color: #c4ccff;
   text-decoration: none;

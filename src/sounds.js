@@ -4,6 +4,8 @@ const path = require("path");
 const chokidar = require("chokidar");
 const { SOUNDS_DIR, META_FILE } = require("./config");
 
+const DEFAULT_CATEGORY = "uncategorized";
+
 // Any audio file types you want to allow/scan
 const AUDIO_EXTS = new Set([
   ".mp3", ".wav", ".ogg", ".flac", ".m4a", ".aac", ".opus", ".webm"
@@ -32,6 +34,54 @@ function normalizeId(filenameOrTitle) {
     .replace(/[^a-z0-9-_]/g, "_") // normalize
     .replace(/_+/g, "_")          // collapse repeats
     .replace(/^_+|_+$/g, "");     // trim underscores
+}
+
+function sanitizeCategoryName(name) {
+  return String(name || "")
+    .trim()
+    .replace(/[^a-zA-Z0-9-_]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_+|_+$/g, "");
+}
+
+function normalizeCategories(input, fallback = DEFAULT_CATEGORY) {
+  let list = [];
+  if (Array.isArray(input)) {
+    list = input;
+  } else if (typeof input === "string") {
+    list = input.split(",").map(x => x.trim()).filter(Boolean);
+  } else if (input) {
+    list = [String(input)];
+  }
+
+  const cleaned = Array.from(new Set(
+    list
+      .map(sanitizeCategoryName)
+      .filter(Boolean)
+  ));
+
+  if (cleaned.length === 0 && fallback) return [sanitizeCategoryName(fallback) || DEFAULT_CATEGORY];
+  return cleaned;
+}
+
+function normalizeTags(input) {
+  if (!input) return [];
+  const list = Array.isArray(input) ? input : String(input).split(",");
+  return Array.from(new Set(
+    list
+      .map(t => String(t || "").trim())
+      .filter(Boolean)
+  ));
+}
+
+function applyMetaNormalization(entry, fallbackCategory = DEFAULT_CATEGORY) {
+  const categories = normalizeCategories(entry.categories ?? entry.category, fallbackCategory);
+  entry.categories = categories;
+  entry.category = categories[0] || fallbackCategory;
+  entry.tags = normalizeTags(entry.tags);
+  if (entry.volume !== undefined) {
+    entry.volume = Number(entry.volume);
+  }
 }
 
 /**
@@ -65,12 +115,13 @@ function scanSounds() {
       const existing = meta[id];
 
       // fallback category only used if JSON missing
-      const fallbackCategory = folderCategory || "uncategorized";
+      const fallbackCategory = sanitizeCategoryName(folderCategory || DEFAULT_CATEGORY) || DEFAULT_CATEGORY;
 
       // Seed JSON if missing
       if (!existing) {
         meta[id] = {
           title: item.name.replace(ext, ""),
+          categories: [fallbackCategory],
           category: fallbackCategory,
           tags: []
         };
@@ -78,14 +129,18 @@ function scanSounds() {
       }
 
       const m = meta[id];
+      const before = JSON.stringify(m);
+      applyMetaNormalization(m, fallbackCategory);
+      if (!metaDirty && JSON.stringify(m) !== before) metaDirty = true;
 
       out.push({
         id,
         title: m.title || item.name.replace(ext, ""),
         filePath: fullPath,
-        // JSON category wins always
-        category: m.category || fallbackCategory,
-        tags: Array.isArray(m.tags) ? m.tags : [],
+        category: m.category,
+        categories: m.categories,
+        tags: m.tags,
+        volume: m.volume,
         ext,
         addedAt: fs.statSync(fullPath).birthtimeMs || Date.now()
       });
@@ -131,7 +186,9 @@ function getSounds() {
         id: s.id,
         title: s.title,
         category: s.category,
+        categories: s.categories,
         tags: s.tags,
+        volume: s.volume,
         ext: s.ext,
         addedAt: s.addedAt,
 
@@ -150,12 +207,15 @@ function getSoundById(id) {
  */
 function updateSoundMeta(id, patch) {
   loadMeta();
-  meta[id] = meta[id] || { title: id, category: "uncategorized", tags: [] };
+  meta[id] = meta[id] || { title: id, categories: [DEFAULT_CATEGORY], category: DEFAULT_CATEGORY, tags: [] };
 
   if (patch.title !== undefined) meta[id].title = patch.title;
-  if (patch.category !== undefined) meta[id].category = patch.category;
-  if (patch.tags !== undefined) meta[id].tags = patch.tags;
+  if (patch.categories !== undefined) meta[id].categories = normalizeCategories(patch.categories);
+  if (patch.category !== undefined) meta[id].categories = normalizeCategories(patch.category);
+  if (patch.tags !== undefined) meta[id].tags = normalizeTags(patch.tags);
   if (patch.volume !== undefined) meta[id].volume = patch.volume;
+
+  applyMetaNormalization(meta[id]);
 
   saveMeta();
   scanSounds();
@@ -179,6 +239,109 @@ function deleteSound(id) {
   saveMeta();
   scanSounds();
   return true;
+}
+
+function renameCategory(oldName, newName) {
+  const from = sanitizeCategoryName(oldName);
+  const to = sanitizeCategoryName(newName);
+  if (!from || !to) return false;
+
+  loadMeta();
+  let changed = false;
+
+  for (const id of Object.keys(meta)) {
+    const entry = meta[id];
+    const categories = normalizeCategories(entry.categories ?? entry.category);
+    const next = [];
+    categories.forEach(cat => {
+      const normalized = sanitizeCategoryName(cat);
+      if (!normalized) return;
+      if (normalized.toLowerCase() === from.toLowerCase()) {
+        if (!next.some(x => x.toLowerCase() === to.toLowerCase())) next.push(to);
+        changed = true;
+      } else if (!next.some(x => x.toLowerCase() === normalized.toLowerCase())) {
+        next.push(normalized);
+      }
+    });
+    if (next.length === 0) next.push(DEFAULT_CATEGORY);
+    entry.categories = next;
+    applyMetaNormalization(entry);
+  }
+
+  if (changed) {
+    saveMeta();
+    scanSounds();
+  }
+  return changed;
+}
+
+function deleteCategory(name, fallback = DEFAULT_CATEGORY) {
+  const target = sanitizeCategoryName(name);
+  if (!target) return false;
+
+  loadMeta();
+  let changed = false;
+
+  for (const id of Object.keys(meta)) {
+    const entry = meta[id];
+    const categories = normalizeCategories(entry.categories ?? entry.category);
+    const next = categories.filter(c => c.toLowerCase() !== target.toLowerCase());
+    if (next.length !== categories.length) changed = true;
+    if (next.length === 0) next.push(fallback);
+    entry.categories = next;
+    applyMetaNormalization(entry);
+  }
+
+  if (changed) {
+    saveMeta();
+    scanSounds();
+  }
+  return changed;
+}
+
+function renameTag(oldTag, newTag) {
+  const from = String(oldTag || "").trim();
+  const to = String(newTag || "").trim();
+  if (!from || !to) return false;
+
+  loadMeta();
+  let changed = false;
+
+  for (const id of Object.keys(meta)) {
+    const entry = meta[id];
+    const tags = normalizeTags(entry.tags);
+    const next = tags.map(t => t.toLowerCase() === from.toLowerCase() ? to : t);
+    if (next.join("|") !== tags.join("|")) changed = true;
+    entry.tags = Array.from(new Set(next));
+  }
+
+  if (changed) {
+    saveMeta();
+    scanSounds();
+  }
+  return changed;
+}
+
+function deleteTag(tag) {
+  const target = String(tag || "").trim();
+  if (!target) return false;
+
+  loadMeta();
+  let changed = false;
+
+  for (const id of Object.keys(meta)) {
+    const entry = meta[id];
+    const tags = normalizeTags(entry.tags);
+    const next = tags.filter(t => t.toLowerCase() !== target.toLowerCase());
+    if (next.length !== tags.length) changed = true;
+    entry.tags = next;
+  }
+
+  if (changed) {
+    saveMeta();
+    scanSounds();
+  }
+  return changed;
 }
 
 /**
@@ -209,5 +372,11 @@ module.exports = {
   updateSoundMeta,
   deleteSound,
   watchSounds,
-  normalizeId
+  normalizeId,
+  normalizeCategories,
+  normalizeTags,
+  renameCategory,
+  deleteCategory,
+  renameTag,
+  deleteTag
 };

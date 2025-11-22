@@ -1,22 +1,60 @@
 import { ensureSession } from "./auth.js";
+
+let sessionId = localStorage.getItem("sessionId");
 await ensureSession();
+sessionId = localStorage.getItem("sessionId");
 
 const adminSearch = document.getElementById("adminSearch");
 const adminList = document.getElementById("adminList");
+const categoryManager = document.getElementById("categoryManager");
+const tagManager = document.getElementById("tagManager");
 const categoryListId = "admin-category-list";
 const tagListId = "admin-tag-list";
-
-let sessionId = localStorage.getItem("sessionId");
 let sounds = [];
 let hasUploadRole = false;
 let isAdmin = false;
 let previewAudio = null;
 let previewingId = null;
 
+function categoriesOf(sound) {
+  if (!sound) return [];
+  if (Array.isArray(sound.categories) && sound.categories.length) {
+    return sound.categories.filter(Boolean);
+  }
+  return sound.category ? [sound.category] : [];
+}
+
+function parseListInput(value) {
+  const raw = Array.isArray(value) ? value : String(value || "").split(",");
+  const seen = new Set();
+  return raw
+    .map(x => String(x || "").trim())
+    .filter(x => {
+      if (!x) return false;
+      const key = x.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function formatList(value) {
+  return parseListInput(value).join(", ");
+}
+
+function getAvailableCategories() {
+  return Array.from(new Set(sounds.flatMap(s => categoriesOf(s)))).sort();
+}
+
+function getAvailableTags() {
+  return Array.from(new Set(sounds.flatMap(s => s.tags || []))).sort((a, b) => a.localeCompare(b));
+}
+
 const socket = io();
 socket.on("sounds:update", (list) => {
   sounds = list;
   updateSuggestions();
+  renderTaxonomy();
   renderList();
 });
 
@@ -30,11 +68,22 @@ async function ensureUploader() {
   if (!hasUploadRole) {
     alert("You need the upload role to edit sounds.");
   }
+  renderTaxonomy();
   renderList();
 }
 
+async function authedJSON(url, options = {}) {
+  if (!sessionId) throw new Error("No session.");
+  const headers = Object.assign({ "X-Session-Id": sessionId }, options.headers || {});
+  const opts = Object.assign({}, options, { headers });
+  const r = await fetch(url, opts);
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || "request failed");
+  return j;
+}
+
 async function patchJSON(url, body) {
-  const r = await fetch(url, {
+  return authedJSON(url, {
     method: "PATCH",
     headers: {
       "Content-Type": "application/json",
@@ -42,31 +91,27 @@ async function patchJSON(url, body) {
     },
     body: JSON.stringify(body)
   });
-  const j = await r.json();
-  if (!r.ok) throw new Error(j.error || "request failed");
-  return j;
 }
 
 function escapeOption(value) {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+    .replace(/</g, "&lt;");
 }
 
 function updateSuggestions() {
-  const categories = new Set();
-  const tags = new Set();
-
-  sounds.forEach(s => {
-    if (s.category) categories.add(s.category);
-    (s.tags || []).forEach(t => tags.add(t));
-  });
+  const categories = getAvailableCategories();
+  const tags = getAvailableTags();
 
   const catEl = document.getElementById(categoryListId);
   const tagEl = document.getElementById(tagListId);
   if (catEl) {
-    catEl.innerHTML = [...categories].sort().map(c => `<option value="${escapeOption(c)}"></option>`).join("");
+    catEl.innerHTML = categories.map(c => `<option value="${escapeOption(c)}"></option>`).join("");
   }
   if (tagEl) {
-    tagEl.innerHTML = [...tags].sort().map(t => `<option value="${escapeOption(t)}"></option>`).join("");
+    tagEl.innerHTML = tags.map(t => `<option value="${escapeOption(t)}"></option>`).join("");
   }
 }
 
@@ -114,11 +159,182 @@ function togglePreview(sound) {
   updatePreviewStates();
 }
 
+function setupMultiInput(input, optionsFn) {
+  if (!input || input.dataset.multiReady) return;
+  input.dataset.multiReady = "1";
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "multi-input";
+  input.parentElement.insertBefore(wrapper, input);
+  wrapper.appendChild(input);
+
+  const dropdown = document.createElement("div");
+  dropdown.className = "multi-suggest-list";
+  wrapper.appendChild(dropdown);
+
+  const refresh = () => {
+    const existing = parseListInput(input.value);
+    const fragment = input.value.split(",").pop().trim().toLowerCase();
+    const opts = optionsFn()
+      .filter(opt => !existing.some(e => e.toLowerCase() === opt.toLowerCase()))
+      .filter(opt => !fragment || opt.toLowerCase().startsWith(fragment))
+      .slice(0, 8);
+
+    if (!opts.length) {
+      dropdown.classList.remove("show");
+      dropdown.innerHTML = "";
+      return;
+    }
+
+    dropdown.innerHTML = opts
+      .map(opt => `<button type="button" data-val="${escapeOption(opt)}">${escapeOption(opt)}</button>`)
+      .join("");
+    dropdown.classList.add("show");
+
+    dropdown.querySelectorAll("button").forEach(btn => {
+      btn.onclick = (e) => {
+        e.preventDefault();
+        const val = btn.dataset.val;
+        const next = parseListInput(input.value);
+        if (!next.some(n => n.toLowerCase() === val.toLowerCase())) next.push(val);
+        input.value = next.join(", ") + ", ";
+        refresh();
+        input.focus();
+      };
+    });
+  };
+
+  input.addEventListener("input", refresh);
+  input.addEventListener("focus", refresh);
+  input.addEventListener("blur", () => setTimeout(() => dropdown.classList.remove("show"), 120));
+}
+
+function summarizeCategories() {
+  const counts = new Map();
+  sounds.forEach(s => {
+    categoriesOf(s).forEach(cat => counts.set(cat, (counts.get(cat) || 0) + 1));
+  });
+  return Array.from(counts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+function summarizeTags() {
+  const counts = new Map();
+  sounds.forEach(s => {
+    (s.tags || []).forEach(tag => counts.set(tag, (counts.get(tag) || 0) + 1));
+  });
+  return Array.from(counts.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+}
+
+async function renameCategoryFlow(name) {
+  if (!isAdmin) return alert("Admin required.");
+  const next = prompt(`Rename category "${name}" to:`, name);
+  if (!next || next.trim() === name) return;
+  try {
+    await authedJSON("/api/admin/categories/rename", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Session-Id": sessionId },
+      body: JSON.stringify({ from: name, to: next.trim() })
+    });
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function deleteCategoryFlow(name) {
+  if (!isAdmin) return alert("Admin required.");
+  if (!confirm(`Delete category "${name}" from all sounds?`)) return;
+  try {
+    await authedJSON(`/api/admin/categories/${encodeURIComponent(name)}`, {
+      method: "DELETE",
+      headers: { "X-Session-Id": sessionId }
+    });
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function renameTagFlow(name) {
+  if (!isAdmin) return alert("Admin required.");
+  const next = prompt(`Rename tag "${name}" to:`, name);
+  if (!next || next.trim() === name) return;
+  try {
+    await authedJSON("/api/admin/tags/rename", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Session-Id": sessionId },
+      body: JSON.stringify({ from: name, to: next.trim() })
+    });
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+async function deleteTagFlow(name) {
+  if (!isAdmin) return alert("Admin required.");
+  if (!confirm(`Delete tag "${name}" from all sounds?`)) return;
+  try {
+    await authedJSON(`/api/admin/tags/${encodeURIComponent(name)}`, {
+      method: "DELETE",
+      headers: { "X-Session-Id": sessionId }
+    });
+  } catch (e) {
+    alert(e.message);
+  }
+}
+
+function renderTaxonomy() {
+  const cats = summarizeCategories();
+  if (categoryManager) {
+    categoryManager.innerHTML = cats.length ? cats.map(([name, count]) => `
+      <div class="taxonomy-row">
+        <div class="taxonomy-info">
+          <strong>${escapeOption(name)}</strong>
+          <span class="muted">${count} sound${count === 1 ? "" : "s"}</span>
+        </div>
+        <div class="taxonomy-actions">
+          ${isAdmin ? `<button data-action="rename-cat" data-name="${escapeOption(name)}">Rename</button>` : `<button disabled title="Admin only">Rename</button>`}
+          ${isAdmin ? `<button class="danger" data-action="delete-cat" data-name="${escapeOption(name)}">Delete</button>` : `<button class="danger" disabled title="Admin only">Delete</button>`}
+        </div>
+      </div>
+    `).join("") : `<div class="muted">No categories yet.</div>`;
+
+    categoryManager.querySelectorAll('[data-action="rename-cat"]').forEach(btn => {
+      btn.onclick = () => renameCategoryFlow(btn.dataset.name);
+    });
+    categoryManager.querySelectorAll('[data-action="delete-cat"]').forEach(btn => {
+      btn.onclick = () => deleteCategoryFlow(btn.dataset.name);
+    });
+  }
+
+  const tags = summarizeTags();
+  if (tagManager) {
+    tagManager.innerHTML = tags.length ? tags.map(([name, count]) => `
+      <div class="taxonomy-row">
+        <div class="taxonomy-info">
+          <strong>${escapeOption(name)}</strong>
+          <span class="muted">${count} sound${count === 1 ? "" : "s"}</span>
+        </div>
+        <div class="taxonomy-actions">
+          ${isAdmin ? `<button data-action="rename-tag" data-name="${escapeOption(name)}">Rename</button>` : `<button disabled title="Admin only">Rename</button>`}
+          ${isAdmin ? `<button class="danger" data-action="delete-tag" data-name="${escapeOption(name)}">Delete</button>` : `<button class="danger" disabled title="Admin only">Delete</button>`}
+        </div>
+      </div>
+    `).join("") : `<div class="muted">No tags yet.</div>`;
+
+    tagManager.querySelectorAll('[data-action="rename-tag"]').forEach(btn => {
+      btn.onclick = () => renameTagFlow(btn.dataset.name);
+    });
+    tagManager.querySelectorAll('[data-action="delete-tag"]').forEach(btn => {
+      btn.onclick = () => deleteTagFlow(btn.dataset.name);
+    });
+  }
+}
+
 function renderList() {
   const q = adminSearch.value.trim().toLowerCase();
   const filtered = sounds.filter(s =>
     s.title.toLowerCase().includes(q) ||
     s.id.includes(q) ||
+    categoriesOf(s).some(c => c.toLowerCase().includes(q)) ||
     (s.tags || []).some(t => t.toLowerCase().includes(q))
   );
 
@@ -129,13 +345,13 @@ function renderList() {
   adminList.innerHTML = filtered.map(s => `
     <div class="admin-item${previewingId === s.id ? " is-previewing" : ""}" data-id="${s.id}">
       <div class="admin-row">
-        <strong>${s.title}</strong> <span class="muted">(${s.id})</span>
+        <strong>${escapeOption(s.title)}</strong> <span class="muted">(${escapeOption(s.id)})</span>
         <span class="muted file-meta">${(s.ext || "audio").toUpperCase()}</span>
       </div>
       <div class="admin-row">
-        <label>Title <input class="t" value="${s.title}"></label>
-        <label>Category <input class="c" list="${categoryListId}" value="${s.category}"></label>
-        <label>Tags (comma) <input class="g" list="${tagListId}" value="${(s.tags||[]).join(", ")}"></label>
+        <label>Title <input class="t" value="${escapeOption(s.title)}"></label>
+        <label>Categories (comma) <input class="c" list="${categoryListId}" value="${escapeOption(formatList(categoriesOf(s)))}"></label>
+        <label>Tags (comma) <input class="g" list="${tagListId}" value="${escapeOption(formatList(s.tags || []))}"></label>
         <label>Volume <input class="v" type="range" min="0" max="2" step="0.01" value="${s.volume ?? 1}"><span class="vol-label">${Math.round((s.volume ?? 1)*100)}%</span></label>
       </div>
       <div class="admin-row admin-actions">
@@ -156,15 +372,18 @@ function renderList() {
     const sound = sounds.find(s => s.id === id);
     if (!sound) return;
 
+    setupMultiInput(el.querySelector(".c"), getAvailableCategories);
+    setupMultiInput(el.querySelector(".g"), getAvailableTags);
+
     el.querySelector(".save").onclick = async () => {
       if (!hasUploadRole) return alert("Upload role required.");
       if (!sessionId) return alert("No session.");
       const title = el.querySelector(".t").value.trim();
-      const category = el.querySelector(".c").value.trim();
-      const tags = el.querySelector(".g").value.split(",").map(x=>x.trim()).filter(Boolean);
+      const categories = parseListInput(el.querySelector(".c").value);
+      const tags = parseListInput(el.querySelector(".g").value);
       const volume = parseFloat(el.querySelector(".v").value);
       try {
-        await patchJSON(`/api/admin/sounds/${id}`, { title, category, tags, volume });
+        await patchJSON(`/api/admin/sounds/${id}`, { title, categories, tags, volume });
       } catch (e) {
         alert(e.message);
       }
@@ -185,7 +404,6 @@ function renderList() {
       delBtn.onclick = async () => {
         if (!isAdmin) return alert("Admin required.");
         if (!confirm("Delete this sound? This cannot be undone.")) return;
-        const id = el.dataset.id;
         const r = await fetch(`/api/admin/sounds/${id}`, {
           method: "DELETE",
           headers: { "X-Session-Id": sessionId }
@@ -194,6 +412,7 @@ function renderList() {
         if (!r.ok) return alert(j.error || "Delete failed");
         sounds = sounds.filter(s => s.id !== id);
         renderList();
+        renderTaxonomy();
       };
     }
   });
@@ -205,3 +424,5 @@ adminSearch.addEventListener("input", renderList);
 
 await ensureUploader();
 updateSuggestions();
+renderTaxonomy();
+renderList();

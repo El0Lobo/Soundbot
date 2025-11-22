@@ -6,7 +6,19 @@ const { Server } = require("socket.io");
 const multer = require("multer");
 const { z } = require("zod");
 
-const { getSounds, updateSoundMeta, scanSounds, normalizeId, deleteSound } = require("./sounds");
+const {
+  getSounds,
+  updateSoundMeta,
+  scanSounds,
+  normalizeId,
+  deleteSound,
+  normalizeCategories,
+  normalizeTags,
+  renameCategory,
+  deleteCategory,
+  renameTag,
+  deleteTag
+} = require("./sounds");
 const { playSound, getQueue, stopPlayback, skipCurrent } = require("./audioManager");
 const { getGuildConfig } = require("./guildStore");
 const { setIntro, setOutro, getUserConfig, setFavorites, getFavorites } = require("./userStore");
@@ -362,17 +374,33 @@ function createWebServer(client, port = 3000, onSoundsChange) {
   });
 
   // --- Admin metadata patch ---
+  const CategoriesField = z.union([z.string(), z.array(z.string())]);
+
   const PatchSchema = z.object({
     title: z.string().optional(),
-    category: z.string().optional(),
-    tags: z.array(z.string()).optional()
+    category: CategoriesField.optional(),
+    categories: CategoriesField.optional(),
+    tags: z.array(z.string()).optional(),
+    volume: z.number().optional()
   });
 
   app.patch("/api/admin/sounds/:id", requireSession, requireUploadRole, (req, res) => {
     const parsed = PatchSchema.safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
 
-    updateSoundMeta(req.params.id, parsed.data);
+    const body = parsed.data;
+    const patch = {
+      title: body.title,
+      tags: body.tags,
+      volume: body.volume
+    };
+    if (body.categories !== undefined) {
+      patch.categories = normalizeCategories(body.categories);
+    } else if (body.category !== undefined) {
+      patch.categories = normalizeCategories(body.category);
+    }
+
+    updateSoundMeta(req.params.id, patch);
     broadcastSounds();
     res.json({ ok: true });
   });
@@ -384,6 +412,43 @@ function createWebServer(client, port = 3000, onSoundsChange) {
     res.json({ ok: true });
   });
 
+  const RenameFieldSchema = z.object({
+    from: z.string().min(1),
+    to: z.string().min(1)
+  });
+
+  app.post("/api/admin/categories/rename", requireAdmin, (req, res) => {
+    const parsed = RenameFieldSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
+
+    const ok = renameCategory(parsed.data.from, parsed.data.to);
+    broadcastSounds();
+    res.json({ ok });
+  });
+
+  app.delete("/api/admin/categories/:name", requireAdmin, (req, res) => {
+    const target = req.params.name;
+    const removed = deleteCategory(target);
+    broadcastSounds();
+    res.json({ ok: true, removed });
+  });
+
+  app.post("/api/admin/tags/rename", requireAdmin, (req, res) => {
+    const parsed = RenameFieldSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
+
+    const ok = renameTag(parsed.data.from, parsed.data.to);
+    broadcastSounds();
+    res.json({ ok });
+  });
+
+  app.delete("/api/admin/tags/:name", requireAdmin, (req, res) => {
+    const target = req.params.name;
+    const removed = deleteTag(target);
+    broadcastSounds();
+    res.json({ ok: true, removed });
+  });
+
   // --- Uploads ---
   fs.mkdirSync(TMP_DIR, { recursive: true });
   const upload = multer({
@@ -393,8 +458,14 @@ function createWebServer(client, port = 3000, onSoundsChange) {
 
   const UploadSchema = z.object({
     title: z.string().min(1),
-    category: z.string().min(1),
+    category: CategoriesField.optional(),
+    categories: CategoriesField.optional(),
     tags: z.string().optional()
+  }).refine((data) => {
+    const raw = data.categories ?? data.category;
+    return normalizeCategories(raw, "").length > 0;
+  }, {
+    message: "Category is required"
   });
 
   app.post("/api/upload-file", requireSession, requireUploadRole, upload.single("file"), async (req, res) => {
@@ -403,8 +474,8 @@ function createWebServer(client, port = 3000, onSoundsChange) {
       if (!parsed.success) throw new Error(parsed.error.message);
       if (!req.file) throw new Error("No file uploaded.");
 
-      const { title, category, tags } = parsed.data;
-      const safeCategory = category.replace(/[^a-zA-Z0-9-_]/g, "_");
+      const { title, tags } = parsed.data;
+      const categories = normalizeCategories(parsed.data.categories ?? parsed.data.category);
       const outDir = SOUNDS_DIR;
       fs.mkdirSync(outDir, { recursive: true });
 
@@ -414,8 +485,8 @@ function createWebServer(client, port = 3000, onSoundsChange) {
 
       updateSoundMeta(idBase, {
         title,
-        category: safeCategory,
-        tags: (tags || "").split(",").map(x => x.trim()).filter(Boolean)
+        categories,
+        tags: normalizeTags(tags)
       });
 
       scanSounds();
@@ -474,8 +545,14 @@ function createWebServer(client, port = 3000, onSoundsChange) {
     start: z.number().min(0),
     end: z.number().min(0),
     title: z.string().min(1),
-    category: z.string().min(1),
+    category: CategoriesField.optional(),
+    categories: CategoriesField.optional(),
     tags: z.string().optional()
+  }).refine((data) => {
+    const raw = data.categories ?? data.category;
+    return normalizeCategories(raw, "").length > 0;
+  }, {
+    message: "Category is required"
   });
 
   app.post("/api/youtube/import", requireSession, requireUploadRole, async (req, res) => {
@@ -484,13 +561,13 @@ function createWebServer(client, port = 3000, onSoundsChange) {
       const parsed = YTTrimSchema.safeParse(req.body);
       if (!parsed.success) throw new Error(parsed.error.message);
 
-      const { url, start, end, title, category, tags } = parsed.data;
+      const { url, start, end, title, tags } = parsed.data;
+      const categories = normalizeCategories(parsed.data.categories ?? parsed.data.category);
       if (end <= start) throw new Error("End must be after start.");
 
       const dl = await downloadYoutubeAudio(url);
       tmpFile = dl.tmpFile;
 
-      const safeCategory = category.replace(/[^a-zA-Z0-9-_]/g, "_");
       const outDir = SOUNDS_DIR;
       fs.mkdirSync(outDir, { recursive: true });
 
@@ -501,8 +578,8 @@ function createWebServer(client, port = 3000, onSoundsChange) {
 
       updateSoundMeta(idBase, {
         title,
-        category: safeCategory,
-        tags: (tags || "").split(",").map(x => x.trim()).filter(Boolean)
+        categories,
+        tags: normalizeTags(tags)
       });
 
       scanSounds();

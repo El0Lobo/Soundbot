@@ -67,7 +67,12 @@ function createBot() {
           (s.tags || []).some(t => t.toLowerCase().includes(focused))
         )
         .slice(0, 25)
-        .map(s => ({ name: `${s.title} (${s.category})`, value: s.id }));
+        .map(s => {
+          const categories = Array.isArray(s.categories) && s.categories.length
+            ? s.categories.join(", ")
+            : (s.category || "uncategorized");
+          return { name: `${s.title} (${categories})`, value: s.id };
+        });
       return interaction.respond(choices);
     }
 

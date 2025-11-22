@@ -18,9 +18,17 @@ const { getSounds } = require("./sounds");
 // Helpers / file resolution (JSON categories without moving files)
 // ============================================================
 
+function listCategories(sound) {
+  const list = Array.isArray(sound?.categories) ? sound.categories : [];
+  if (sound?.category && !list.length) list.push(sound.category);
+  return list
+    .map(c => String(c || "").trim())
+    .filter(Boolean);
+}
+
 function resolveSoundPath(s, allSounds) {
-  const rawCat = (s.category && String(s.category).trim()) || "uncategorized";
-  const category = rawCat.toLowerCase();
+  const categories = listCategories(s);
+  const primary = categories[0] || "uncategorized";
 
   let filename = s.file && String(s.file).trim();
 
@@ -32,16 +40,33 @@ function resolveSoundPath(s, allSounds) {
 
   const candidates = [];
 
-  if (category !== "uncategorized") {
-    candidates.push(path.join(SOUNDS_DIR, rawCat, filename));
+  const seen = new Set();
+
+  const addCandidate = (dir) => {
+    if (seen.has(dir)) return;
+    seen.add(dir);
+    candidates.push(dir);
+  };
+
+  if (primary.toLowerCase() !== "uncategorized") {
+    addCandidate(path.join(SOUNDS_DIR, primary, filename));
   }
 
-  candidates.push(path.join(SOUNDS_DIR, filename));
-  candidates.push(path.join(SOUNDS_DIR, "uncategorized", filename));
+  categories.slice(1).forEach(cat => {
+    if (cat.toLowerCase() === "uncategorized") return;
+    addCandidate(path.join(SOUNDS_DIR, cat, filename));
+  });
 
-  const cats = Array.from(new Set(allSounds.map(x => x.category).filter(Boolean)));
+  addCandidate(path.join(SOUNDS_DIR, filename));
+  addCandidate(path.join(SOUNDS_DIR, "uncategorized", filename));
+
+  const cats = Array.from(new Set(
+    (allSounds || [])
+      .flatMap(x => listCategories(x))
+      .filter(Boolean)
+  ));
   for (const c of cats) {
-    candidates.push(path.join(SOUNDS_DIR, c, filename));
+    addCandidate(path.join(SOUNDS_DIR, c, filename));
   }
 
   for (const p of candidates) {
