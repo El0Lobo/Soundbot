@@ -1,3 +1,64 @@
 Remove-Item -Recurse -Force node_modules
 
 npm installs
+The system cannot find the path specified.
+npm WARN deprecated @types/minimatch@6.0.0: This is a stub types definition. minimatch provides its own type definitions, so you do not need this installed.
+npm WARN deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm WARN deprecated debuglog@1.0.1: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm WARN deprecated readdir-scoped-modules@1.1.0: This functionality has been moved to @npmcli/fs
+npm WARN deprecated read-package-json@2.1.2: This package is no longer supported. Please use @npmcli/package-json instead.
+npm WARN deprecated har-validator@5.1.5: this library is no longer supported
+npm WARN deprecated osenv@0.0.3: This package is no longer supported.
+npm WARN deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+npm WARN deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm WARN deprecated graceful-fs@2.0.3: please upgrade to graceful-fs 4 for compatibility with current and future versions of Node.js
+npm WARN deprecated minimatch@0.2.14: Please update to minimatch 3.0.2 or higher to avoid a RegExp DoS issue
+npm WARN deprecated tough-cookie@0.9.8: ReDoS vulnerability parsing Set-Cookie https://nodesecurity.io/advisories/130
+npm WARN deprecated uuid@3.4.0: Please upgrade  to version 7 or higher.  Older versions may use Math.random() in certain circumstances, which is known to be problematic.  See https://v8.dev/blog/math-random for details.
+npm WARN deprecated mkdirp@0.3.5: Legacy versions of mkdirp are no longer supported. Please update to mkdirp 1.x. (Note that the API surface has changed to use Promises in 1.x.)
+npm WARN deprecated mkdirp@0.3.5: Legacy versions of mkdirp are no longer supported. Please update to mkdirp 1.x. (Note that the API surface has changed to use Promises in 1.x.)
+npm WARN deprecated mkdirp@0.3.5: Legacy versions of mkdirp are no longer supported. Please update to mkdirp 1.x. (Note that the API surface has changed to use Promises in 1.x.)
+npm WARN deprecated request@2.88.2: request has been deprecated, see https://github.com/request/request/issues/3142
+npm WARN deprecated mkdirp@0.3.5: Legacy versions of mkdirp are no longer supported. Please update to mkdirp 1.x. (Note that the API surface has changed to use Promises in 1.x.)
+npm WARN deprecated mkdirp@0.3.4: Legacy versions of mkdirp are no longer supported. Please update to mkdirp 1.x. (Note that the API surface has changed to use Promises in 1.x.)
+npm WARN deprecated mkdirp@0.3.0: Legacy versions of mkdirp are no longer supported. Please update to mkdirp 1.x. (Note that the API surface has changed to use Promises in 1.x.)
+npm WARN deprecated express@3.2.5: No longer maintained. Please upgrade to a stable version.
+npm WARN deprecated glob@3.2.3: Glob versions prior to v9 are no longer supported
+npm WARN deprecated read-installed@4.0.3: This package is no longer supported.
+npm WARN deprecated jade@0.26.3: Jade has been renamed to pug, please install the latest version of pug instead of jade
+npm WARN deprecated formidable@1.0.14: Please upgrade to latest, formidable@v2 or formidable@v3! Check these notes: https://bit.ly/2ZEqIau
+npm WARN deprecated mocha@1.13.0: Mocha v1.x is no longer supported.
+npm WARN deprecated connect@2.7.11: connect 2.x series is deprecated
+npm WARN deprecated connect@2.7.10: connect 2.x series is deprecated
+npm WARN deprecated node-sass@0.7.0: Node Sass is no longer supported. Please use `sass` or `sass-embedded` instead.
+npm ERR! code 1
+npm ERR! path C:\Users\Lobo\Desktop\Soundbot\node_modules\node-sass
+npm ERR! command failed
+npm ERR! command C:\Windows\system32\cmd.exe /d /s /c node build.js
+npm ERR! node:internal/child_process:420
+npm ERR!     throw new ErrnoException(err, 'spawn');
+npm ERR!     ^
+npm ERR!
+npm ERR! Error: spawn EINVAL
+npm ERR!     at ChildProcess.spawn (node:internal/child_process:420:11)
+npm ERR!     at Object.spawn (node:child_process:753:9)
+npm ERR!     at build (C:\Users\Lobo\Desktop\Soundbot\node_modules\node-sass\build.js:64:5)
+npm ERR!     at Object.<anonymous> (C:\Users\Lobo\Desktop\Soundbot\node_modules\node-sass\build.js:56:3)
+npm ERR!     at Module._compile (node:internal/modules/cjs/loader:1562:14)
+npm ERR!     at Object..js (node:internal/modules/cjs/loader:1699:10)
+npm ERR!     at Module.load (node:internal/modules/cjs/loader:1313:32)
+npm ERR!     at Function._load (node:internal/modules/cjs/loader:1123:12)
+npm ERR!     at TracingChannel.traceSync (node:diagnostics_channel:322:14)
+npm ERR!     at wrapModuleLoad (node:internal/modules/cjs/loader:217:24) {
+npm ERR!   errno: -4071,
+npm ERR!   code: 'EINVAL',
+npm ERR!   syscall: 'spawn'
+npm ERR! }
+npm ERR!
+npm ERR! Node.js v22.13.0
+
+npm ERR! A complete log of this run can be found in:
+npm ERR!     C:\Users\Lobo\AppData\Local\npm-cache\_logs\2025-11-23T23_19_08_837Z-debug-0.log
+
+> discord-soundbot-web-soundboard-upgraded@2.0.0 start
+> node src/index.js
