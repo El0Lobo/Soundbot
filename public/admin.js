@@ -159,56 +159,6 @@ function togglePreview(sound) {
   updatePreviewStates();
 }
 
-function setupMultiInput(input, optionsFn) {
-  if (!input || input.dataset.multiReady) return;
-  input.dataset.multiReady = "1";
-
-  const wrapper = document.createElement("div");
-  wrapper.className = "multi-input";
-  input.parentElement.insertBefore(wrapper, input);
-  wrapper.appendChild(input);
-
-  const dropdown = document.createElement("div");
-  dropdown.className = "multi-suggest-list";
-  wrapper.appendChild(dropdown);
-
-  const refresh = () => {
-    const existing = parseListInput(input.value);
-    const fragment = input.value.split(",").pop().trim().toLowerCase();
-    const opts = optionsFn()
-      .filter(opt => !existing.some(e => e.toLowerCase() === opt.toLowerCase()))
-      .filter(opt => !fragment || opt.toLowerCase().startsWith(fragment))
-      .slice(0, 8);
-
-    if (!opts.length) {
-      dropdown.classList.remove("show");
-      dropdown.innerHTML = "";
-      return;
-    }
-
-    dropdown.innerHTML = opts
-      .map(opt => `<button type="button" data-val="${escapeOption(opt)}">${escapeOption(opt)}</button>`)
-      .join("");
-    dropdown.classList.add("show");
-
-    dropdown.querySelectorAll("button").forEach(btn => {
-      btn.onclick = (e) => {
-        e.preventDefault();
-        const val = btn.dataset.val;
-        const next = parseListInput(input.value);
-        if (!next.some(n => n.toLowerCase() === val.toLowerCase())) next.push(val);
-        input.value = next.join(", ") + ", ";
-        refresh();
-        input.focus();
-      };
-    });
-  };
-
-  input.addEventListener("input", refresh);
-  input.addEventListener("focus", refresh);
-  input.addEventListener("blur", () => setTimeout(() => dropdown.classList.remove("show"), 120));
-}
-
 function summarizeCategories() {
   const counts = new Map();
   sounds.forEach(s => {
@@ -371,9 +321,6 @@ function renderList() {
     const id = el.dataset.id;
     const sound = sounds.find(s => s.id === id);
     if (!sound) return;
-
-    setupMultiInput(el.querySelector(".c"), getAvailableCategories);
-    setupMultiInput(el.querySelector(".g"), getAvailableTags);
 
     el.querySelector(".save").onclick = async () => {
       if (!hasUploadRole) return alert("Upload role required.");

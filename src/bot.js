@@ -184,18 +184,20 @@ function createBot() {
     }
 
     if (interaction.commandName === "link") {
+      await interaction.deferReply({ flags: 64 }); // keep the interaction alive during any slow steps
+
       const code = interaction.options.getString("code", true);
       if (!pendingCodes.map) {
-        return replySingle(interaction, { content: "Pairing not enabled.", ephemeral: true });
+        return interaction.editReply("Pairing not enabled.");
       }
       const entry = pendingCodes.map.get(code);
       if (!entry || entry.expiresAt < Date.now()) {
-        return replySingle(interaction, { content: "Code invalid or expired.", ephemeral: true });
+        return interaction.editReply("Code invalid or expired.");
       }
       entry.userId = interaction.user.id;
       entry.guildId = interaction.guildId;
       pendingCodes.map.set(code, entry);
-      await replySingle(interaction, { content: "Linked! Return to the website.", ephemeral: true });
+      await interaction.editReply("Linked! Return to the website.");
     }
   });
 

@@ -617,7 +617,7 @@ main#grid {
   gap: 0.6rem;
   flex-wrap: wrap;
   align-items: center;
-  margin-top: 0.4rem;
+  margin-top: 0.6rem;
 }
 
 .admin-row label {
@@ -625,6 +625,7 @@ main#grid {
   flex-direction: column;
   gap: 0.2rem;
   font-size: 0.85rem;
+  flex: 1 1 220px;
 }
 .admin-row.admin-actions {
   justify-content: space-between;
@@ -683,42 +684,6 @@ main#grid {
 .taxonomy-row button[disabled] {
   opacity: 0.5;
   cursor: not-allowed;
-}
-.multi-input {
-  position: relative;
-  width: 100%;
-}
-.multi-input input {
-  width: 100%;
-}
-.multi-suggest-list {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: calc(100% + 2px);
-  display: none;
-  background: #0f0f15;
-  border: 1px solid #222;
-  border-radius: 8px;
-  padding: 0.25rem;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
-  z-index: 5;
-}
-.multi-suggest-list.show {
-  display: flex;
-  gap: 0.25rem;
-  flex-wrap: wrap;
-}
-.multi-suggest-list button {
-  background: #161622;
-  border: 1px solid #29293a;
-  border-radius: 999px;
-  padding: 0.25rem 0.6rem;
-  color: #e2e8f5;
-  cursor: pointer;
-}
-.multi-suggest-list button:hover {
-  border-color: #5c5ce3;
 }
 .file-link {
   color: #c4ccff;
