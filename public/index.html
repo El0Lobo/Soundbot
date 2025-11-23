@@ -27,35 +27,39 @@
             <img id="guildAvatar" class="avatar guild" alt="Guild icon" />
             <h1><span id="guildNameLabel" class="server-title">Server</span> Soundboard</h1>
             <nav class="nav">
-          <button class="modal-open upload-only" data-modal="uploadModal" data-src="/upload">Upload</button>
-          <button class="modal-open upload-only" data-modal="importModal" data-src="/import">Import</button>
-          <button class="modal-open upload-only" data-modal="introsModal" data-src="/intros">Intro/Outro</button>
-          <button class="modal-open upload-only" data-modal="adminModal" data-src="/admin">Edit</button>
-          <button id="openYtModal" class="yt-open-btn upload-only">Play YouTube</button>
-        </nav>
+              <button class="modal-open upload-only" data-modal="uploadModal" data-src="/upload">Upload</button>
+              <button class="modal-open upload-only" data-modal="importModal" data-src="/import">Import</button>
+              <button class="modal-open upload-only" data-modal="introsModal" data-src="/intros">Intro/Outro</button>
+              <button class="modal-open upload-only" data-modal="adminModal" data-src="/admin">Edit</button>
+              <button id="openYtModal" class="yt-open-btn upload-only">Play YouTube</button>
+              <div id="randomBtnList" class="random-btn-list"></div>
+            </nav>
           </div>
-                <div class="toolbar">
-        <div class="filters">
-          <div class="search-wrap">
-            <input id="search" class="compact-input" placeholder="Search…">
-            <button id="clearSearch" class="pill ghost-btn" type="button" title="Clear search">✕</button>
+          <div class="toolbar">
+            <div class="filters">
+              <div class="search-wrap">
+                <input id="search" class="compact-input" placeholder="Search…">
+                <button id="clearSearch" class="pill ghost-btn" type="button" title="Clear search">✕</button>
+              </div>
+              <select id="categoryFilter" class="compact-select">
+                <option value="all">All</option>
+              </select>
+              <select id="tagFilter" class="compact-select">
+                <option value="all">All tags</option>
+              </select>
+              <select id="sort" class="compact-select" style="width: fit-content;">
+                <option value="title">A–Z</option>
+                <option value="category">Category</option>
+                <option value="tags">Tags</option>
+                <option value="newest">Newest</option>
+              </select>
+              <button id="favoritesToggle" class="pill favorites-toggle" title="Show only favorites">☆
+                Favorites</button>
+              <button id="editModeBtn" class="pill ghost-btn edit-toggle" style="display:none;">Edit mode</button>
+              <button id="addRandomBtn" class="pill ghost-btn admin-only" style="display:none;">+ Add random
+                button</button>
+            </div>
           </div>
-          <select id="categoryFilter" class="compact-select">
-            <option value="all">All</option>
-          </select>
-          <select id="tagFilter" class="compact-select">
-            <option value="all">All tags</option>
-          </select>
-          <select id="sort" class="compact-select" style="width: fit-content;">
-            <option value="title">A–Z</option>
-            <option value="category">Category</option>
-            <option value="tags">Tags</option>
-            <option value="newest">Newest</option>
-          </select>
-          <button id="favoritesToggle" class="pill favorites-toggle" title="Show only favorites">☆ Favorites</button>
-          <button id="editModeBtn" class="pill ghost-btn edit-toggle" style="display:none;">Edit mode</button>
-        </div>
-      </div>
           <div class="voice-bar hidden" id="voiceBar">
             <select id="guildSelect" class="compact-select" style="display:none;"></select>
 
@@ -91,7 +95,7 @@
         </div>
         <div class="queue-row">
           <button id="toggleVoiceBarBtn" class="pill admin-only" style="display:none;">Voice Controls</button>
-                    <button id="moveVoteBtn" class="pill" style="display:none;">Move by vote</button>
+          <button id="moveVoteBtn" class="pill" style="display:none;">Move by vote</button>
           <button id="showQueueBtn" class="pill">Show Queue</button>
           <div id="queueBox" class="queue"></div>
         </div>
@@ -151,7 +155,8 @@
               </label>
               <label class="chip grow">
                 <span>Categories (comma)</span>
-                <input name="category" id="uploadCategories" list="upload-category-list" placeholder="memes, sfx" required />
+                <input name="category" id="uploadCategories" list="upload-category-list" placeholder="memes, sfx"
+                  required />
               </label>
               <label class="chip grow">
                 <span>Tags (comma)</span>
@@ -371,12 +376,46 @@
       </div>
     </div>
 
+    <!-- Add random button modal -->
+    <div class="modal" id="randomModal" aria-hidden="true">
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div class="modal-title">Add random button</div>
+          <button class="modal-close" data-close>Close</button>
+        </div>
+        <div class="modal-body">
+          <form id="randomForm" class="random-form">
+            <label class="chip">
+              <span>Type</span>
+              <select id="randomType">
+                <option value="tag">Tag</option>
+                <option value="category">Category</option>
+              </select>
+            </label>
+            <label class="chip">
+              <span>Value</span>
+              <input id="randomValue" list="random-value-list" placeholder="e.g. memes">
+            </label>
+            <label class="chip">
+              <span>Label</span>
+              <input id="randomLabel" placeholder="Button label (optional)">
+            </label>
+            <div class="modal-actions">
+              <button id="randomSubmit" type="submit" class="pill primary">Add</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
     <datalist id="edit-category-list"></datalist>
     <datalist id="edit-tag-list"></datalist>
     <datalist id="upload-category-list"></datalist>
     <datalist id="upload-tag-list"></datalist>
     <datalist id="admin-category-list"></datalist>
     <datalist id="admin-tag-list"></datalist>
+    <datalist id="random-value-list"></datalist>
 
     <script src="/socket.io/socket.io.js"></script>
     <script type="module" src="lowpoly-bg.js"></script>

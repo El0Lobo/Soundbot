@@ -56,6 +56,16 @@ const uploadTagList = document.getElementById("upload-tag-list");
 const uploadSubmitBtn = document.getElementById("uploadSubmit");
 const adminCategoryList = document.getElementById("admin-category-list");
 const adminTagList = document.getElementById("admin-tag-list");
+const randomControls = document.getElementById("randomControls");
+const addRandomBtn = document.getElementById("addRandomBtn");
+const randomBtnList = document.getElementById("randomBtnList");
+const randomModal = document.getElementById("randomModal");
+const randomForm = document.getElementById("randomForm");
+const randomTypeSelect = document.getElementById("randomType");
+const randomValueInput = document.getElementById("randomValue");
+const randomLabelInput = document.getElementById("randomLabel");
+const randomValueList = document.getElementById("random-value-list");
+const randomSubmitBtn = document.getElementById("randomSubmit");
 
 const useMyChannel = document.getElementById("useMyChannel");
 useMyChannel.checked = true;
@@ -107,6 +117,8 @@ let importInit = false;
 let introsInit = false;
 let adminInit = false;
 let quickEditDirty = false;
+let randomButtons = [];
+const RANDOM_KEY = "random_buttons";
 
 function categoriesOf(sound) {
   if (!sound) return [];
@@ -171,6 +183,7 @@ function updateEditModeUI() {
     editModeBtn.classList.toggle("active", editMode);
     editModeBtn.textContent = editMode ? "Done editing" : "Edit mode";
   }
+  if (addRandomBtn) addRandomBtn.style.display = isAdmin ? "" : "none";
 }
 
 function updateMoveVoteVisibility() {
@@ -214,6 +227,7 @@ function setControlsEnabled(on) {
   updateUploadUI();
   updateMoveVoteVisibility();
   updateEditModeUI();
+  renderRandomButtons();
 }
 
 function updateVoiceBarUI() {
@@ -239,6 +253,11 @@ editModeBtn?.addEventListener("click", () => {
   editMode = !editMode;
   updateEditModeUI();
   render();
+});
+
+addRandomBtn?.addEventListener("click", () => {
+  if (!isAdmin) return;
+  if (randomModal) openModal(randomModal);
 });
 
 function updateVoiceBlockerUI() {
@@ -458,6 +477,8 @@ socket.on("sounds:update", (list) => {
   refreshFilters();
   applyFilters();
 });
+
+loadRandomButtons();
 
 async function initImportModal() {
   if (importInit) return;
@@ -809,6 +830,7 @@ function updateQuickEditLists() {
   if (adminTagList) {
     adminTagList.innerHTML = tags.map(t => `<option value="${t}"></option>`).join("");
   }
+  renderRandomButtons();
 }
 
 function prepareUploadForm() {
@@ -842,6 +864,67 @@ function refreshFilters() {
   } catch {}
 
   updateQuickEditLists();
+}
+
+function saveRandomButtons() {
+  try { localStorage.setItem(RANDOM_KEY, JSON.stringify(randomButtons)); } catch {}
+}
+
+function loadRandomButtons() {
+  try {
+    const raw = localStorage.getItem(RANDOM_KEY);
+    randomButtons = raw ? JSON.parse(raw) : [];
+  } catch {
+    randomButtons = [];
+  }
+}
+
+function playRandomBy(type, value) {
+  const pool = type === "tag"
+    ? sounds.filter(s => (s.tags || []).includes(value))
+    : sounds.filter(s => categoriesOf(s).includes(value));
+  if (!pool.length) {
+    showToast(`No sounds with that ${type}.`);
+    return;
+  }
+  const pick = pool[Math.floor(Math.random() * pool.length)];
+  play(pick.id);
+}
+
+function renderRandomButtons() {
+  const can = isAdmin;
+  if (!randomBtnList) return;
+  randomBtnList.innerHTML = randomButtons.map(btn => `
+    <button class="random-btn" data-id="${btn.id}" data-type="${btn.type}" data-val="${btn.value}">
+      ${btn.label || `${btn.type}: ${btn.value}`}
+      ${can ? `<span class="remove" title="Remove" data-remove="${btn.id}">×</span>` : ""}
+    </button>
+  `).join("");
+
+  randomBtnList.querySelectorAll(".random-btn").forEach(el => {
+    el.addEventListener("click", (e) => {
+      const removeId = e.target?.dataset?.remove;
+      if (removeId) {
+        randomButtons = randomButtons.filter(b => b.id !== removeId);
+        saveRandomButtons();
+        renderRandomButtons();
+        e.stopPropagation();
+        return;
+      }
+      const id = el.dataset.id;
+      const btn = randomButtons.find(b => b.id === id);
+      if (!btn) return;
+      playRandomBy(btn.type, btn.value);
+    });
+  });
+
+  if (randomValueList && randomTypeSelect) {
+    const type = randomTypeSelect.value;
+    const options = type === "tag"
+      ? Array.from(new Set(sounds.flatMap(s => s.tags || []))).sort((a,b)=>a.localeCompare(b))
+      : Array.from(new Set(sounds.flatMap(s => categoriesOf(s)))).sort();
+    randomValueList.innerHTML = options.map(v => `<option value="${v}"></option>`).join("");
+  }
 }
 
 function favoriteKey() {

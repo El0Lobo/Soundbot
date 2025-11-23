@@ -136,7 +136,7 @@ html, body, #appShell {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  width: 100%;
+  width: 131%;
 }
 
 .filters,
@@ -990,6 +990,50 @@ body.edit-mode .edit-card-btn{
 }
 .intro-row .chip {
   flex: 1 1 240px;
+}
+
+.random-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.random-controls .chip {
+  margin: 0;
+}
+.random-btn-list {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.random-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 10px;
+  border: 1px solid #2c2c3a;
+  background: #171727;
+  color: #e2e8ff;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+.random-btn .remove {
+  background: transparent;
+  border: none;
+  color: #b7bed9;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0 0.2rem;
+}
+.random-btn .remove:hover {
+  color: #ff9b9b;
+}
+.random-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
 }
 
 .voice-blocker {
