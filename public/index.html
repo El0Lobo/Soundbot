@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Soundboard</title>
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://unpkg.com/wavesurfer.js"></script>
 </head>
 
 <body>
@@ -52,6 +53,7 @@
             <option value="newest">Newest</option>
           </select>
           <button id="favoritesToggle" class="pill favorites-toggle" title="Show only favorites">☆ Favorites</button>
+          <button id="editModeBtn" class="pill ghost-btn edit-toggle" style="display:none;">Edit mode</button>
         </div>
       </div>
           <div class="voice-bar hidden" id="voiceBar">
@@ -135,45 +137,153 @@
     <!-- MODALS -->
     <div class="modal" id="uploadModal" aria-hidden="true">
       <div class="modal-backdrop" data-close></div>
-      <div class="modal-panel">
+      <div class="modal-panel wide-modal">
         <div class="modal-header">
           <div class="modal-title">Upload</div>
           <button class="modal-close" data-close>Close</button>
         </div>
-        <iframe class="modal-frame" src="about:blank"></iframe>
+        <div class="modal-body">
+          <form id="uploadForm" class="upload-form">
+            <div class="upload-row">
+              <label class="chip grow">
+                <span>Title</span>
+                <input name="title" id="uploadTitle" required placeholder="Funny sound" />
+              </label>
+              <label class="chip grow">
+                <span>Categories (comma)</span>
+                <input name="category" id="uploadCategories" list="upload-category-list" placeholder="memes, sfx" required />
+              </label>
+              <label class="chip grow">
+                <span>Tags (comma)</span>
+                <input name="tags" id="uploadTags" list="upload-tag-list" placeholder="loud, bass" />
+              </label>
+            </div>
+            <div class="upload-row">
+              <label class="chip grow">
+                <span>File</span>
+                <input type="file" name="file" id="uploadFile" accept="audio/*" required />
+              </label>
+              <button id="uploadSubmit" class="pill primary" type="submit">Upload</button>
+            </div>
+            <audio id="uploadPreview" controls style="display:none;"></audio>
+            <div id="uploadStatus" class="muted"></div>
+          </form>
+        </div>
       </div>
     </div>
 
     <div class="modal" id="importModal" aria-hidden="true">
       <div class="modal-backdrop" data-close></div>
-      <div class="modal-panel">
+      <div class="modal-panel medium-modal">
         <div class="modal-header">
           <div class="modal-title">YouTube Import</div>
           <button class="modal-close" data-close>Close</button>
         </div>
-        <iframe class="modal-frame" src="about:blank"></iframe>
+        <div class="modal-body">
+          <div class="import-form">
+            <label class="chip">
+              <span>YouTube URL</span>
+              <input id="ytUrl" placeholder="https://www.youtube.com/watch?v=..." style="width:100%">
+            </label>
+            <div class="modal-actions" style="justify-content:flex-start;">
+              <button id="loadBtn" class="pill primary">Load</button>
+            </div>
+            <div id="meta" class="muted"></div>
+            <div id="ytEmbed" class="yt-embed"></div>
+            <div id="wave" style="margin-top:1rem;"></div>
+            <div class="import-range-row">
+              <label class="chip">
+                <span>Start (s)</span>
+                <input id="startSec" type="number" min="0" step="0.1" value="0">
+              </label>
+              <label class="chip">
+                <span>End (s)</span>
+                <input id="endSec" type="number" min="0" step="0.1" value="5">
+              </label>
+              <button id="playSelection" class="pill">Preview selection</button>
+            </div>
+            <form id="saveForm" class="import-save-form">
+              <label class="chip">
+                <span>Title</span>
+                <input name="title" required>
+              </label>
+              <label class="chip">
+                <span>Categories (comma)</span>
+                <input name="category" required>
+              </label>
+              <label class="chip">
+                <span>Tags (comma)</span>
+                <input name="tags">
+              </label>
+              <button type="submit" class="pill primary">Import + Save</button>
+            </form>
+            <div id="status" class="muted"></div>
+          </div>
+        </div>
       </div>
     </div>
 
     <div class="modal" id="introsModal" aria-hidden="true">
       <div class="modal-backdrop" data-close></div>
-      <div class="modal-panel">
+      <div class="modal-panel medium-modal">
         <div class="modal-header">
           <div class="modal-title">Intro / Outro</div>
           <button class="modal-close" data-close>Close</button>
         </div>
-        <iframe class="modal-frame" src="about:blank"></iframe>
+        <div class="modal-body">
+          <div class="panel" style="background:none;border:none;padding:0;">
+            <h3>Your intro/outro sounds</h3>
+            <div class="intro-row">
+              <label class="chip grow">
+                <span>Intro</span>
+                <select id="introSelect"></select>
+              </label>
+              <button id="introPreview" class="pill">Preview</button>
+            </div>
+            <div class="intro-row">
+              <label class="chip grow">
+                <span>Outro</span>
+                <select id="outroSelect"></select>
+              </label>
+              <button id="outroPreview" class="pill">Preview</button>
+            </div>
+            <div class="modal-actions" style="margin-top:0.6rem;">
+              <button id="saveBtn" class="pill primary">Save</button>
+            </div>
+            <div id="status" class="status"></div>
+            <audio id="preview" controls style="width:100%;margin-top:0.5rem;display:none;"></audio>
+          </div>
+        </div>
       </div>
     </div>
 
     <div class="modal" id="adminModal" aria-hidden="true">
       <div class="modal-backdrop" data-close></div>
-      <div class="modal-panel">
+      <div class="modal-panel medium-modal">
         <div class="modal-header">
           <div class="modal-title">Admin</div>
           <button class="modal-close" data-close>Close</button>
         </div>
-        <iframe class="modal-frame" src="about:blank"></iframe>
+        <div class="modal-body">
+          <section class="panel">
+            <h2>Manage categories & tags</h2>
+            <div class="muted">Rename/Delete require admin access.</div>
+            <details class="admin-fold" open>
+              <summary>All categories</summary>
+              <div id="categoryManager"></div>
+            </details>
+            <details class="admin-fold">
+              <summary>All tags</summary>
+              <div id="tagManager"></div>
+            </details>
+          </section>
+
+          <section class="panel">
+            <h2>Edit Sounds</h2>
+            <input id="adminSearch" placeholder="Search sounds...">
+            <div id="adminList"></div>
+          </section>
+        </div>
       </div>
     </div>
 
@@ -220,6 +330,53 @@
         </div>
       </div>
     </div>
+
+    <!-- Quick edit modal -->
+    <div class="modal" id="quickEditModal" aria-hidden="true">
+      <div class="modal-backdrop" data-close></div>
+      <div class="modal-panel">
+        <div class="modal-header">
+          <div class="modal-title">Edit sound</div>
+          <button class="modal-close" data-close>Close</button>
+        </div>
+        <div class="modal-body">
+          <div class="quick-edit-form">
+            <div class="quick-edit-row">
+              <label>
+                <span>Title</span>
+                <input id="editTitle" class="compact-input" type="text" />
+              </label>
+              <label>
+                <span>Categories (comma)</span>
+                <input id="editCategories" class="compact-input" list="edit-category-list" placeholder="funny, memes" />
+              </label>
+            </div>
+            <div class="quick-edit-row">
+              <label>
+                <span>Tags (comma)</span>
+                <input id="editTags" class="compact-input" list="edit-tag-list" placeholder="loud, bass" />
+              </label>
+              <div class="vol-group">
+                <span>Volume</span>
+                <input id="editVolume" type="range" min="0" max="2" step="0.01" value="1">
+                <span id="editVolumeLabel">100%</span>
+              </div>
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button id="quickEditSave" class="pill primary">Save</button>
+          </div>
+          <div id="quickEditStatus" class="status-inline"></div>
+        </div>
+      </div>
+    </div>
+
+    <datalist id="edit-category-list"></datalist>
+    <datalist id="edit-tag-list"></datalist>
+    <datalist id="upload-category-list"></datalist>
+    <datalist id="upload-tag-list"></datalist>
+    <datalist id="admin-category-list"></datalist>
+    <datalist id="admin-tag-list"></datalist>
 
     <script src="/socket.io/socket.io.js"></script>
     <script type="module" src="lowpoly-bg.js"></script>

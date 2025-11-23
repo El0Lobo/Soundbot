@@ -314,6 +314,7 @@ function renderList() {
           ${isAdmin ? `<button class="delete danger">Delete</button>` : ""}
         </div>
       </div>
+      <div class="admin-status status-inline"></div>
     </div>
   `).join("");
 
@@ -322,17 +323,73 @@ function renderList() {
     const sound = sounds.find(s => s.id === id);
     if (!sound) return;
 
-    el.querySelector(".save").onclick = async () => {
+    const saveBtn = el.querySelector(".save");
+    const statusEl = el.querySelector(".admin-status");
+    const titleInput = el.querySelector(".t");
+    const catInput = el.querySelector(".c");
+    const tagInput = el.querySelector(".g");
+    const volInput = el.querySelector(".v");
+
+    const initial = {
+      title: titleInput.value.trim(),
+      categories: parseListInput(catInput.value).join(", "),
+      tags: parseListInput(tagInput.value).join(", "),
+      volume: parseFloat(volInput.value)
+    };
+
+    const setStatus = (msg, type = "") => {
+      if (!statusEl) return;
+      statusEl.textContent = msg || "";
+      statusEl.classList.toggle("ok", type === "ok");
+      statusEl.classList.toggle("dirty", type === "dirty");
+    };
+
+    const refreshDirty = () => {
+      const current = {
+        title: titleInput.value.trim(),
+        categories: parseListInput(catInput.value).join(", "),
+        tags: parseListInput(tagInput.value).join(", "),
+        volume: parseFloat(volInput.value)
+      };
+      const dirty = current.title !== initial.title ||
+        current.categories !== initial.categories ||
+        current.tags !== initial.tags ||
+        current.volume !== initial.volume;
+      saveBtn?.classList.toggle("dirty", dirty);
+      if (dirty) setStatus("Unsaved changes", "dirty");
+      else setStatus("");
+      return { dirty, current };
+    };
+
+    [titleInput, catInput, tagInput, volInput].forEach(inp => {
+      inp?.addEventListener("input", refreshDirty);
+    });
+
+    refreshDirty();
+
+    saveBtn.onclick = async () => {
       if (!hasUploadRole) return alert("Upload role required.");
       if (!sessionId) return alert("No session.");
-      const title = el.querySelector(".t").value.trim();
-      const categories = parseListInput(el.querySelector(".c").value);
-      const tags = parseListInput(el.querySelector(".g").value);
-      const volume = parseFloat(el.querySelector(".v").value);
+      const state = refreshDirty();
+      const title = titleInput.value.trim();
+      const categories = parseListInput(catInput.value);
+      const tags = parseListInput(tagInput.value);
+      const volume = parseFloat(volInput.value);
+      if (!state.dirty) {
+        setStatus("No changes");
+        return;
+      }
+      setStatus("Saving…");
       try {
         await patchJSON(`/api/admin/sounds/${id}`, { title, categories, tags, volume });
+        initial.title = title;
+        initial.categories = parseListInput(catInput.value).join(", ");
+        initial.tags = parseListInput(tagInput.value).join(", ");
+        initial.volume = volume;
+        refreshDirty();
+        setStatus("Saved.", "ok");
       } catch (e) {
-        alert(e.message);
+        setStatus(e.message, "dirty");
       }
     };
 

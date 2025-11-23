@@ -29,6 +29,33 @@ const moveVoteBtn = document.getElementById("moveVoteBtn");
 const moveVoteModal = document.getElementById("moveVoteModal");
 const moveTargetSelect = document.getElementById("moveTargetSelect");
 const startMoveVoteBtn = document.getElementById("startMoveVoteBtn");
+const editModeBtn = document.getElementById("editModeBtn");
+
+// Quick edit modal elements
+const quickEditModal = document.getElementById("quickEditModal");
+const quickEditSaveBtn = document.getElementById("quickEditSave");
+const quickEditStatus = document.getElementById("quickEditStatus");
+const editTitleInput = document.getElementById("editTitle");
+const editCategoriesInput = document.getElementById("editCategories");
+const editTagsInput = document.getElementById("editTags");
+const editVolumeInput = document.getElementById("editVolume");
+const editVolumeLabel = document.getElementById("editVolumeLabel");
+const editCategoryList = document.getElementById("edit-category-list");
+const editTagList = document.getElementById("edit-tag-list");
+
+// Upload modal elements (embedded)
+const uploadForm = document.getElementById("uploadForm");
+const uploadTitleInput = document.getElementById("uploadTitle");
+const uploadCategoriesInput = document.getElementById("uploadCategories");
+const uploadTagsInput = document.getElementById("uploadTags");
+const uploadFileInput = document.getElementById("uploadFile");
+const uploadPreview = document.getElementById("uploadPreview");
+const uploadStatus = document.getElementById("uploadStatus");
+const uploadCategoryList = document.getElementById("upload-category-list");
+const uploadTagList = document.getElementById("upload-tag-list");
+const uploadSubmitBtn = document.getElementById("uploadSubmit");
+const adminCategoryList = document.getElementById("admin-category-list");
+const adminTagList = document.getElementById("admin-tag-list");
 
 const useMyChannel = document.getElementById("useMyChannel");
 useMyChannel.checked = true;
@@ -74,6 +101,12 @@ let inVoiceChannel = false;
 let voiceStatusKnown = false;
 let currentUserId = localStorage.getItem("userId") || null;
 let hasUploadRole = false;
+let editMode = false;
+let quickEditTargetId = null;
+let importInit = false;
+let introsInit = false;
+let adminInit = false;
+let quickEditDirty = false;
 
 function categoriesOf(sound) {
   if (!sound) return [];
@@ -85,6 +118,24 @@ function categoriesOf(sound) {
 
 function primaryCategory(sound) {
   return categoriesOf(sound)[0] || "uncategorized";
+}
+
+function parseListInput(value) {
+  const raw = Array.isArray(value) ? value : String(value || "").split(",");
+  const seen = new Set();
+  return raw
+    .map(x => String(x || "").trim())
+    .filter(x => {
+      if (!x) return false;
+      const key = x.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function formatList(value) {
+  return parseListInput(value).join(", ");
 }
 
 loadFavorites().then(() => applyFilters());
@@ -105,6 +156,21 @@ function updateUploadUI() {
   uploadOnlyEls.forEach(el => {
     el.style.display = hasUploadRole ? "" : "none";
   });
+}
+
+function canEditSounds() {
+  return !!sessionId && (hasUploadRole || isAdmin);
+}
+
+function updateEditModeUI() {
+  const can = canEditSounds();
+  if (!can) editMode = false;
+  document.body.classList.toggle("edit-mode", can && editMode);
+  if (editModeBtn) {
+    editModeBtn.style.display = can ? "" : "none";
+    editModeBtn.classList.toggle("active", editMode);
+    editModeBtn.textContent = editMode ? "Done editing" : "Edit mode";
+  }
 }
 
 function updateMoveVoteVisibility() {
@@ -147,6 +213,7 @@ function setControlsEnabled(on) {
   updateVoiceBlockerUI();
   updateUploadUI();
   updateMoveVoteVisibility();
+  updateEditModeUI();
 }
 
 function updateVoiceBarUI() {
@@ -166,6 +233,12 @@ function updateVoiceBarUI() {
 toggleVoiceBarBtn?.addEventListener("click", () => {
   voiceBarVisible = !voiceBarVisible;
   updateVoiceBarUI();
+});
+
+editModeBtn?.addEventListener("click", () => {
+  editMode = !editMode;
+  updateEditModeUI();
+  render();
 });
 
 function updateVoiceBlockerUI() {
@@ -227,6 +300,35 @@ function openModal(modalEl, src = null) {
     if (frame && frame.src !== location.origin + src) {
       frame.src = src;
     }
+    if (frame) {
+      const resize = () => {
+        try {
+          const doc = frame.contentDocument;
+          if (!doc) return;
+          const body = doc.body;
+          const html = doc.documentElement;
+          const contentHeight = Math.max(
+            body?.scrollHeight || 0,
+            html?.scrollHeight || 0
+          );
+          const max = Math.floor(window.innerHeight * 0.9);
+          const desired = Math.min(Math.max(contentHeight, 360), max);
+          frame.style.height = `${desired}px`;
+          const panel = frame.closest(".modal-panel");
+          if (panel) {
+            panel.style.height = "auto";
+            panel.style.maxHeight = `${Math.floor(window.innerHeight * 0.94)}px`;
+          }
+        } catch (err) {
+          console.warn("iframe resize failed:", err?.message);
+        }
+      };
+      frame.removeEventListener("load", frame._resizeHandler || (() => {}));
+      frame._resizeHandler = resize;
+      frame.addEventListener("load", resize);
+      // kick once for cached pages
+      setTimeout(resize, 50);
+    }
   }
 }
 
@@ -243,6 +345,18 @@ document.querySelectorAll(".modal-open").forEach(btn => {
     const modalId = btn.dataset.modal;
     const src = btn.dataset.src;
     const modalEl = document.getElementById(modalId);
+    if (modalId === "uploadModal") {
+      prepareUploadForm();
+    }
+    if (modalId === "importModal") {
+      initImportModal();
+    }
+    if (modalId === "introsModal") {
+      initIntrosModal();
+    }
+    if (modalId === "adminModal") {
+      initAdminModal();
+    }
     openModal(modalEl, src);
   });
 });
@@ -268,6 +382,73 @@ document.addEventListener("keydown", (e) => {
 openYtModalBtn?.addEventListener("click", () => openModal(ytModal));
 
 /* =========================
+   UPLOAD (embedded)
+   ========================= */
+
+uploadFileInput?.addEventListener("change", () => {
+  const f = uploadFileInput.files?.[0];
+  if (!f || !uploadPreview) return;
+  uploadPreview.src = URL.createObjectURL(f);
+  uploadPreview.style.display = "block";
+});
+
+uploadForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  if (!sessionId) {
+    showToast("Log in first.");
+    return;
+  }
+  if (!hasUploadRole) {
+    showToast("Upload role required.");
+    return;
+  }
+  const title = (uploadTitleInput?.value || "").trim();
+  const categories = parseListInput(uploadCategoriesInput?.value || "");
+  const tags = parseListInput(uploadTagsInput?.value || "");
+  const file = uploadFileInput?.files?.[0];
+
+  if (!title) {
+    uploadStatus.textContent = "Title is required.";
+    return;
+  }
+  if (!categories.length) {
+    uploadStatus.textContent = "Category is required.";
+    return;
+  }
+  if (!file) {
+    uploadStatus.textContent = "Pick a file first.";
+    return;
+  }
+
+  const fd = new FormData();
+  fd.append("title", title);
+  fd.append("category", categories.join(", "));
+  fd.append("tags", tags.join(", "));
+  fd.append("file", file);
+
+  uploadStatus.textContent = "Uploading...";
+  if (uploadSubmitBtn) uploadSubmitBtn.disabled = true;
+
+  try {
+    const r = await fetch("/api/upload-file", {
+      method: "POST",
+      headers: { "X-Session-Id": sessionId },
+      body: fd
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.error || "Upload failed.");
+
+    uploadStatus.textContent = `Saved as soundId: ${j.soundId}`;
+    prepareUploadForm();
+    updateQuickEditLists();
+  } catch (err) {
+    uploadStatus.textContent = err?.message || "Upload failed.";
+  } finally {
+    if (uploadSubmitBtn) uploadSubmitBtn.disabled = false;
+  }
+});
+
+/* =========================
    SOCKET / SOUNDS
    ========================= */
 
@@ -277,6 +458,36 @@ socket.on("sounds:update", (list) => {
   refreshFilters();
   applyFilters();
 });
+
+async function initImportModal() {
+  if (importInit) return;
+  importInit = true;
+  try {
+    await import("./import.js");
+  } catch (err) {
+    console.warn("Failed to init import modal:", err?.message);
+  }
+}
+
+async function initIntrosModal() {
+  if (introsInit) return;
+  introsInit = true;
+  try {
+    await import("./intros.js");
+  } catch (err) {
+    console.warn("Failed to init intros modal:", err?.message);
+  }
+}
+
+async function initAdminModal() {
+  if (adminInit) return;
+  adminInit = true;
+  try {
+    await import("./admin.js");
+  } catch (err) {
+    console.warn("Failed to init admin modal:", err?.message);
+  }
+}
 
 /* =========================
    GUILDS / CHANNELS
@@ -522,6 +733,7 @@ async function refreshLoginStatus() {
     if (!isAdmin) voiceBarVisible = false;
     updateVoiceBarUI();
     updateUploadUI();
+    updateEditModeUI();
     await refreshVoiceStatus();
     setAvatar(guildAvatar, j.guildIcon);
     setAvatar(userAvatarEl, j.userAvatar);
@@ -565,6 +777,7 @@ async function refreshLoginStatus() {
     updateVoiceBarUI();
     updateUploadUI();
     updateVoiceBlockerUI();
+    updateEditModeUI();
     await loadFavorites();
     applyFilters();
   }
@@ -573,6 +786,42 @@ async function refreshLoginStatus() {
 /* =========================
    FILTERS / GRID
    ========================= */
+
+function updateQuickEditLists() {
+  const cats = Array.from(new Set(sounds.flatMap(s => categoriesOf(s)))).sort();
+  const tags = Array.from(new Set(sounds.flatMap(s => s.tags || []))).sort((a,b)=>a.localeCompare(b));
+
+  if (editCategoryList) {
+    editCategoryList.innerHTML = cats.map(c => `<option value="${c}"></option>`).join("");
+  }
+  if (editTagList) {
+    editTagList.innerHTML = tags.map(t => `<option value="${t}"></option>`).join("");
+  }
+  if (uploadCategoryList) {
+    uploadCategoryList.innerHTML = cats.map(c => `<option value="${c}"></option>`).join("");
+  }
+  if (uploadTagList) {
+    uploadTagList.innerHTML = tags.map(t => `<option value="${t}"></option>`).join("");
+  }
+  if (adminCategoryList) {
+    adminCategoryList.innerHTML = cats.map(c => `<option value="${c}"></option>`).join("");
+  }
+  if (adminTagList) {
+    adminTagList.innerHTML = tags.map(t => `<option value="${t}"></option>`).join("");
+  }
+}
+
+function prepareUploadForm() {
+  if (!uploadForm) return;
+  uploadForm.reset();
+  if (uploadPreview) {
+    uploadPreview.pause();
+    uploadPreview.src = "";
+    uploadPreview.style.display = "none";
+  }
+  if (uploadStatus) uploadStatus.textContent = "";
+  updateQuickEditLists();
+}
 
 function refreshFilters() {
   const cats = Array.from(new Set(sounds.flatMap(s => categoriesOf(s)))).sort();
@@ -591,6 +840,8 @@ function refreshFilters() {
       sortSelect.value = savedSort;
     }
   } catch {}
+
+  updateQuickEditLists();
 }
 
 function favoriteKey() {
@@ -687,8 +938,7 @@ function render() {
           <button class="fav-toggle ${favorites.has(s.id) ? "active" : ""}" data-id="${s.id}" aria-label="Toggle favorite">
             ${favorites.has(s.id) ? "★" : "☆"}
           </button>
-   
-         
+          ${editMode && canEditSounds() ? `<button class="edit-card-btn" data-id="${s.id}" title="Quick edit">✎</button>` : ""}
         </div>
         <div class="sound-main">
           <div class="title truncated" title="${s.title}">${s.title}</div>
@@ -716,7 +966,15 @@ function render() {
   `).join("");
 
   grid.querySelectorAll(".sound-card").forEach(card => {
-    card.onclick = () => play(card.dataset.id);
+    card.onclick = () => {
+      if (card.classList.contains("clicked")) {
+        card.classList.remove("clicked");
+        void card.offsetWidth;
+      }
+      card.classList.add("clicked");
+      setTimeout(() => card.classList.remove("clicked"), 500);
+      play(card.dataset.id);
+    };
   });
 
   grid.querySelectorAll(".fav-toggle").forEach(btn => {
@@ -736,7 +994,112 @@ function render() {
       preview(btn.dataset.id);
     };
   });
+
+  if (editMode && canEditSounds()) {
+    grid.querySelectorAll(".edit-card-btn").forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        openQuickEdit(btn.dataset.id);
+      };
+    });
+  }
 }
+
+function openQuickEdit(soundId) {
+  if (!canEditSounds()) {
+    showToast("Upload role or admin required.");
+    return;
+  }
+  const s = sounds.find(x => x.id === soundId);
+  if (!s) return;
+
+  quickEditTargetId = soundId;
+  if (editTitleInput) editTitleInput.value = s.title || "";
+  if (editCategoriesInput) editCategoriesInput.value = formatList(categoriesOf(s));
+  if (editTagsInput) editTagsInput.value = formatList(s.tags || []);
+  const vol = s.volume ?? 1;
+  if (editVolumeInput) editVolumeInput.value = vol;
+  if (editVolumeLabel) editVolumeLabel.textContent = `${Math.round((editVolumeInput?.value || vol) * 100)}%`;
+  if (quickEditStatus) quickEditStatus.textContent = "";
+  quickEditDirty = false;
+  quickEditSaveBtn?.classList.remove("dirty");
+
+  updateQuickEditLists();
+  openModal(quickEditModal);
+}
+
+editVolumeInput?.addEventListener("input", () => {
+  if (editVolumeLabel && editVolumeInput) {
+    editVolumeLabel.textContent = `${Math.round(parseFloat(editVolumeInput.value || "0") * 100)}%`;
+  }
+});
+
+function markQuickEditDirty() {
+  quickEditDirty = true;
+  quickEditSaveBtn?.classList.add("dirty");
+  if (quickEditStatus) quickEditStatus.textContent = "Unsaved changes";
+}
+
+editTitleInput?.addEventListener("input", markQuickEditDirty);
+editCategoriesInput?.addEventListener("input", markQuickEditDirty);
+editTagsInput?.addEventListener("input", markQuickEditDirty);
+editVolumeInput?.addEventListener("input", markQuickEditDirty);
+
+quickEditSaveBtn?.addEventListener("click", async () => {
+  if (!canEditSounds()) {
+    showToast("Upload role or admin required.");
+    return;
+  }
+  if (!sessionId) {
+    showToast("Log in first.");
+    return;
+  }
+  if (!quickEditTargetId) return;
+
+  const target = sounds.find(s => s.id === quickEditTargetId);
+  if (!target) return;
+
+  const title = (editTitleInput?.value || "").trim() || target.title;
+  const categories = parseListInput(editCategoriesInput?.value || "");
+  const tags = parseListInput(editTagsInput?.value || "");
+  let volume = parseFloat(editVolumeInput?.value || `${target.volume ?? 1}`);
+  if (!Number.isFinite(volume)) volume = target.volume ?? 1;
+
+  quickEditSaveBtn.disabled = true;
+  quickEditStatus.textContent = "Saving…";
+
+  try {
+    const r = await fetch(`/api/admin/sounds/${quickEditTargetId}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Session-Id": sessionId
+      },
+      body: JSON.stringify({ title, categories, tags, volume })
+    });
+    if (!r.ok) {
+      const txt = await r.text();
+      throw new Error(txt || "Save failed.");
+    }
+
+    target.title = title;
+    target.categories = categories;
+    target.tags = tags;
+    target.volume = volume;
+
+    showToast("Saved.");
+    quickEditDirty = false;
+    quickEditSaveBtn?.classList.remove("dirty");
+    if (quickEditStatus) quickEditStatus.textContent = "Saved.";
+    closeModal(quickEditModal);
+    quickEditTargetId = null;
+    applyFilters();
+  } catch (e) {
+    quickEditStatus.textContent = e?.message || "Save failed.";
+  } finally {
+    quickEditSaveBtn.disabled = false;
+  }
+});
 
 function preview(soundId) {
   if (voiceGateActive()) return;

@@ -1,11 +1,14 @@
 {
   "321": {
     "title": "321",
-    "category": "uncategorized",
-    "tags": [],
+    "category": "Game",
+    "tags": [
+      "Quake"
+    ],
     "categories": [
-      "uncategorized"
-    ]
+      "Game"
+    ],
+    "volume": 1
   },
   "200kabelkasette": {
     "title": "kabelkasette",
