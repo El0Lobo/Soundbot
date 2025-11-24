@@ -118,6 +118,7 @@ let introsInit = false;
 let adminInit = false;
 let quickEditDirty = false;
 let randomButtons = [];
+const RANDOM_KEY = "random_buttons";
 
 function categoriesOf(sound) {
   if (!sound) return [];
@@ -259,14 +260,14 @@ addRandomBtn?.addEventListener("click", () => {
   if (randomModal) openModal(randomModal);
 });
 
-randomForm?.addEventListener("submit", async (e) => {
+randomTypeSelect?.addEventListener("change", () => {
+  renderRandomButtons();
+});
+
+randomForm?.addEventListener("submit", (e) => {
   e.preventDefault();
   if (!isAdmin) {
     showToast("Admin only.");
-    return;
-  }
-  if (!sessionId) {
-    showToast("Log in first.");
     return;
   }
   const type = (randomTypeSelect?.value || "tag");
@@ -276,28 +277,17 @@ randomForm?.addEventListener("submit", async (e) => {
     showToast("Pick a tag or category first.");
     return;
   }
-
-  randomSubmitBtn.disabled = true;
-  try {
-    const r = await fetch("/api/random-buttons", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Session-Id": sessionId
-      },
-      body: JSON.stringify({ type, value, label })
-    });
-    const j = await r.json().catch(() => ({}));
-    if (!r.ok) throw new Error(j.error || "Add failed");
-    randomButtons.push(j);
-    renderRandomButtons();
-    randomForm.reset();
-    closeModal(randomModal);
-  } catch (err) {
-    showToast(err?.message || "Add failed.");
-  } finally {
-    randomSubmitBtn.disabled = false;
-  }
+  const entry = {
+    id: `${Date.now()}_${Math.random().toString(16).slice(2)}`,
+    type,
+    value,
+    label
+  };
+  randomButtons.push(entry);
+  saveRandomButtons();
+  renderRandomButtons();
+  randomForm.reset();
+  closeModal(randomModal);
 });
 
 function updateVoiceBlockerUI() {
@@ -439,7 +429,6 @@ document.addEventListener("keydown", (e) => {
 
 // YouTube modal open
 openYtModalBtn?.addEventListener("click", () => openModal(ytModal));
-randomTypeSelect?.addEventListener("change", () => renderRandomButtons());
 
 /* =========================
    UPLOAD (embedded)
@@ -907,6 +896,20 @@ function refreshFilters() {
   updateQuickEditLists();
 }
 
+function saveRandomButtons() {
+  try { localStorage.setItem(RANDOM_KEY, JSON.stringify(randomButtons)); } catch {}
+}
+
+function loadRandomButtons() {
+  try {
+    const raw = localStorage.getItem(RANDOM_KEY);
+    randomButtons = raw ? JSON.parse(raw) : [];
+  } catch {
+    randomButtons = [];
+  }
+  renderRandomButtons();
+}
+
 function playRandomBy(type, value) {
   const pool = type === "tag"
     ? sounds.filter(s => (s.tags || []).includes(value))
@@ -917,35 +920,6 @@ function playRandomBy(type, value) {
   }
   const pick = pool[Math.floor(Math.random() * pool.length)];
   play(pick.id);
-}
-
-async function loadRandomButtonsFromServer() {
-  try {
-    const r = await fetch("/api/random-buttons");
-    const j = await r.json();
-    randomButtons = Array.isArray(j.buttons) ? j.buttons : [];
-    renderRandomButtons();
-  } catch (err) {
-    console.warn("Failed to load random buttons:", err?.message);
-  }
-}
-
-async function deleteRandomButton(id) {
-  if (!isAdmin || !sessionId) return;
-  try {
-    const r = await fetch(`/api/random-buttons/${id}`, {
-      method: "DELETE",
-      headers: { "X-Session-Id": sessionId }
-    });
-    if (!r.ok) {
-      const txt = await r.text();
-      throw new Error(txt || "Delete failed");
-    }
-    randomButtons = randomButtons.filter(b => b.id !== id);
-    renderRandomButtons();
-  } catch (err) {
-    showToast(err?.message || "Delete failed.");
-  }
 }
 
 function renderRandomButtons() {
@@ -962,8 +936,9 @@ function renderRandomButtons() {
     el.addEventListener("click", (e) => {
       const removeId = e.target?.dataset?.remove;
       if (removeId) {
-        if (!isAdmin || !sessionId) return;
-        deleteRandomButton(removeId);
+        randomButtons = randomButtons.filter(b => b.id !== removeId);
+        saveRandomButtons();
+        renderRandomButtons();
         e.stopPropagation();
         return;
       }
@@ -1477,4 +1452,3 @@ applyFilters();
 refreshLoginStatus();
 syncUseMyVcUI();
 setControlsEnabled(!!sessionId);
-loadRandomButtonsFromServer();

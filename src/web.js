@@ -28,8 +28,6 @@ const { playYoutubeOnce } = require("./ytPlay");
 const { startMovePoll } = require("./movePoll");
 const { ADMIN_USER_IDS, UPLOAD_ALLOWED_ROLE, SOUNDS_DIR, TMP_DIR, DEFAULT_BOT_CHANNEL_ID } = require("./config");
 
-const RANDOM_BUTTONS_FILE = path.join(__dirname, "..", "data", "random-buttons.json");
-
 function createWebServer(client, port = 3000, onSoundsChange) {
   const app = express();
   app.use(express.json());
@@ -53,23 +51,6 @@ function createWebServer(client, port = 3000, onSoundsChange) {
   io.on("connection", socket => {
     socket.emit("sounds:update", getSounds());
   });
-
-  // --- random buttons store ---
-  function loadRandomButtons() {
-    try {
-      const raw = fs.readFileSync(RANDOM_BUTTONS_FILE, "utf8");
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) return parsed;
-    } catch {}
-    return [];
-  }
-  let randomButtons = loadRandomButtons();
-  const saveRandomButtons = () => {
-    try {
-      fs.mkdirSync(path.dirname(RANDOM_BUTTONS_FILE), { recursive: true });
-      fs.writeFileSync(RANDOM_BUTTONS_FILE, JSON.stringify(randomButtons, null, 2));
-    } catch {}
-  };
 
   // --- pairing / sessions ---
   const pendingCodes = new Map(); // code -> { userId, guildId, expiresAt }
@@ -187,35 +168,6 @@ function createWebServer(client, port = 3000, onSoundsChange) {
     } catch (e) {
       res.status(400).json({ ok: false, error: e.message });
     }
-  });
-
-  // random buttons
-  app.get("/api/random-buttons", (req, res) => {
-    res.json({ buttons: randomButtons });
-  });
-
-  app.post("/api/random-buttons", requireAdmin, (req, res) => {
-    const schema = z.object({
-      type: z.enum(["tag", "category"]),
-      value: z.string().min(1),
-      label: z.string().optional()
-    });
-    const parsed = schema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.message });
-    const id = `${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    const entry = { id, ...parsed.data };
-    randomButtons.push(entry);
-    saveRandomButtons();
-    res.json(entry);
-  });
-
-  app.delete("/api/random-buttons/:id", requireAdmin, (req, res) => {
-    const id = req.params.id;
-    const before = randomButtons.length;
-    randomButtons = randomButtons.filter(b => b.id !== id);
-    if (randomButtons.length === before) return res.status(404).json({ error: "Not found" });
-    saveRandomButtons();
-    res.json({ ok: true });
   });
 
   app.get("/api/queue/:guildId", (req, res) => {
