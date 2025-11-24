@@ -300,7 +300,7 @@ function renderList() {
       </div>
       <div class="admin-row">
         <label>Title <input class="t" value="${s.title}"></label>
-        <label>Category <input class="c" list="admin-category-list" value="${categoriesOf(s).join(", ")}"></label>
+        <label>Categories (comma) <input class="c" list="admin-category-list" value="${categoriesOf(s).join(", ")}"></label>
         <label>Tags (comma) <input class="g" list="admin-tag-list" value="${(s.tags||[]).join(", ")}"></label>
         <div class="admin-preview">
           <button class="preview-btn">${previewingId === s.id && !previewAudio.paused ? "Stop" : "Preview"}</button>
